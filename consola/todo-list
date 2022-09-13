@@ -1,0 +1,4 @@
+
+13/09/2022 - Carrillo Franco
+El modulo consola ahora genera una cola de instrucciones segun el archivo de pseudocodigo.
+Falta conectarlo con el kernel.
