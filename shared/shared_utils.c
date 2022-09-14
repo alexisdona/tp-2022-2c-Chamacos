@@ -1,4 +1,4 @@
-#include "shared_utils.h"
+#include "shared.h"
 
 /*
  *
@@ -18,10 +18,6 @@ t_config* iniciar_config(char* file) {
         exit(EXIT_FAILURE);
     }
     return nuevo_config;
-}
-
-t_config* init_connection_config() {
-    return iniciar_config(CONNECTION_FILE);
 }
 
 void logear_instruccion(t_log* logger, t_instruccion* instruccion){
@@ -59,37 +55,3 @@ char* traducir_dispositivo(dispositivo disp){
     else if( disp == IMPRESORA) return "IMPRESORA";
     else return "ERROR - DISPOSITIVO INVALIDO";
 }
-
-/*
- *
- * Funciones de Comunicacion
- *  
- */
-
-int crear_conexion(char* ip, int puerto){
-    int socket_cliente = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (socket_cliente == -1) {
-        perror("Hubo un error al crear el socket del servidor");
-        exit(EXIT_FAILURE);
-    }
-
-    struct sockaddr_in direccionServer;
-    direccionServer.sin_family = AF_INET;
-    direccionServer.sin_addr.s_addr = inet_addr(ip);
-    direccionServer.sin_port = htons(puerto);
-    memset(&(direccionServer.sin_zero), '\0', 8); //se rellena con ceros para que tenga el mismo tamaño que socketaddr
-
-    verificar_connect(socket_cliente, &direccionServer);
-
-    return socket_cliente;
-}
-
-void verificar_connect(int socket_cliente, struct sockaddr_in *direccion_server) {
-    if (connect(socket_cliente, (void*) direccion_server, sizeof((*direccion_server))) == -1) {
-        perror("Hubo un problema conectando al servidor");
-        close(socket_cliente);
-        exit(EXIT_FAILURE);
-    }
-}
-

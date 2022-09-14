@@ -1,0 +1,4 @@
+14/09/2022 - Carrillo Franco
+Separacion de usos de la libreria:
+-Comunicacion
+-Utilidades comunes a los modulos
