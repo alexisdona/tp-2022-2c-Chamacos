@@ -30,7 +30,6 @@ void inicializar_logger_configs(char* config_file){
     communication_config = init_connection_config();
 }
 
-
 t_queue* parsear_instrucciones(t_log* logger, FILE* archivo) {
 
 	t_queue* pseudocodigo = queue_create();
