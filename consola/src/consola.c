@@ -2,32 +2,39 @@
 
 int main(int argc, char* argv[]) {
 
-    if(argc < 3){
-		printf(RED"");
-		printf("Cantidad de parametros incorrectos.\n");
-		printf("1- Archivo de pseudocodigo.\n2- Archivo de configuracion\n");
-		printf(RESET"");
-		return argc;
-	}
+    validar_argumentos_main(argc);
 
     char* archivo = argv[1];
-    char* config_file = argv[2];
+    char* CONFIG_FILE = argv[2];
 
-    inicializar_logger_configs(config_file);
+    logger = iniciar_logger(LOG_FILE,LOG_NAME);
+    consola_config = iniciar_config(CONFIG_FILE);
+    communication_config = init_connection_config();
+
     FILE* archivo_pseudocodigo = fopen(archivo,"r");
 	t_queue* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
 
-    char* ip = config_get_string_value(communication_config,"IP_KERNEL");
-    int puerto = config_get_int_value(communication_config,"PUERTO_KERNEL");
+    char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
+    int P_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
+    int socket_consola = crear_conexion(IP_KERNEL,P_KERNEL);
+    uint32_t respuesta = enviar_handshake_inicial(socket_consola,CONSOLA,logger);
+
+    
 
 	return EXIT_SUCCESS;
 }
 
-void inicializar_logger_configs(char* config_file){
-    logger = iniciar_logger(LOG_FILE, LOG_NAME);
-    consola_config = iniciar_config(config_file);
-    communication_config = init_connection_config();
+void validar_argumentos_main(int argumentos){
+    uint32_t expected = 3;
+    if(argumentos < expected){
+		printf(RED"");
+		printf("Cantidad de parametros incorrectos.\n");
+        printf(" > Expected: %d - Given: %d\n",expected,argumentos);
+		printf("   1- Archivo de pseudocodigo.\n   2- Archivo de configuracion\n");
+		printf(RESET"");
+		exit(argumentos);
+	}
 }
 
 t_queue* parsear_instrucciones(t_log* logger, FILE* archivo) {
