@@ -105,10 +105,20 @@ void verificar_listen(int socket);
 //Se bloquea esperando por un nuevo cliente
 int esperar_cliente(int socket_server, t_log* logger);
 
+//Valida que el identificador de un modulo sea admisible
 int modulo_valido(uint32_t modulo);
+//Retorna el nombre del modulo o socket-modulo dado un identificador
 char* identificadores_modulo(uint32_t id_modulo);
-int enviar_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger);
-int recibir_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger);
+//Envia por el socket el identificador de su modulo y recibe el modulo al que se quiere conectar
+/*Ejemplo: al conectarse la consola con el kernel, obtiene el codigo del kernel
+    enviar_handshake_inicial(sc-consola,CONSOLA,logger) -> KERNEL
+*/
+int enviar_handshake_inicial(int socket, uint32_t su_codigo, t_log* logger);
+//Recibe por el socket el identificador del modulo que se conecta y envia el codigo de si mismo
+/*Ejemplo: al recibir la conexion de la consola, recibe el codigo CONSOLA y envia KERNEL
+    recibir_handshake_inicial(sc-kernel,KERNEL,logger) -> CONSOLA
+*/
+int recibir_handshake_inicial(int socket, uint32_t mi_codigo, t_log* logger);
 
 
 #endif //TP_2022_1C_ECLIPSO_SHARED_H
