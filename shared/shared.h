@@ -29,7 +29,16 @@
 #define WHT   "\x1B[37m"
 #define RESET "\x1B[0m"
 
+#define CONSOLA         0
+#define KERNEL          1
+#define CPU_DISPATCH    2
+#define CPU_INTERRUPT   3
+#define MEMORIA         4
+
+
 #define CONNECTION_FILE "../../connection.config"
+extern char* LOG_FILE;
+extern char* LOG_NAME;
 
 typedef uint32_t operando;
 typedef enum
@@ -59,11 +68,14 @@ typedef struct{
     operando parametros[2];
 } t_instruccion;
 
+//Funciones comunes a los modulos ===========================
+
+//Valida la cantidad de argumentos para iniciar el modulo
+//1 implementacion por modulo
+void validar_argumentos_main(int cantidad_argumentos);
 
 //Logger-Config==============================================
 
-//Funcion que setea al logger y ambos configs, (1 implementacion nueva por modulo)
-void inicializar_logger_configs(char* config_file);
 //Devuelve un logger nuevo con el archivo de logs y su nombre
 t_log* iniciar_logger(char* file, char* log_name);
 //Devuelve un config nuevo con el archivo de config
@@ -92,6 +104,11 @@ void verificar_bind(int socket_kernel,  struct addrinfo *kernelinfo);
 void verificar_listen(int socket);
 //Se bloquea esperando por un nuevo cliente
 int esperar_cliente(int socket_server, t_log* logger);
+
+int modulo_valido(uint32_t modulo);
+char* identificadores_modulo(uint32_t id_modulo);
+int enviar_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger);
+int recibir_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger);
 
 
 #endif //TP_2022_1C_ECLIPSO_SHARED_H

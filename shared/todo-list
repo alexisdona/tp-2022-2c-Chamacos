@@ -1,3 +1,8 @@
+15/09/2022 - Carrillo Franco
+Agregado de funciones para la comunicacion:
+-enviar y recibir handshake inicial de conexion
+-identificadores para verificar el handshake y posteriormente diferenciar los hilos para los servidores
+
 14/09/2022 - Carrillo Franco
 Separacion de usos de la libreria:
 -Comunicacion

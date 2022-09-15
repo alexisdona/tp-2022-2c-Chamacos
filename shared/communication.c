@@ -86,3 +86,51 @@ int esperar_cliente(int socket_server, t_log* logger){
     log_info(logger, "Se conecto un cliente!");
     return socket_cliente;
 }
+
+int enviar_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
+    uint32_t respuesta;
+    uint32_t id_modulo_conectado;
+
+    send(socket,&id_modulo,sizeof(uint32_t),0);
+    recv(socket,&id_modulo_conectado,sizeof(uint32_t),MSG_WAITALL);
+    if(modulo_valido(id_modulo_conectado)){
+        log_info(logger,string_from_format("Conexion establecida: [%s] < ---- > [%s] ",identificadores_modulo(id_modulo),identificadores_modulo(id_modulo_conectado)));
+    }else{
+        log_error(logger,"Error al establecer conexion entre los modulos");
+        exit(EXIT_FAILURE);
+    }
+
+    return id_modulo_conectado;
+}
+
+int recibir_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
+    uint32_t id_modulo_conectado;
+    
+    recv(socket,&id_modulo_conectado,sizeof(uint32_t),MSG_WAITALL);
+    if(modulo_valido(id_modulo_conectado)){
+        send(socket,&id_modulo,sizeof(uint32_t),0);
+        log_info(logger,string_from_format("Conexion establecida: [%s] < ---- > [%s] ",identificadores_modulo(id_modulo),identificadores_modulo(id_modulo_conectado)));
+    }else{
+        id_modulo = -1;
+        send(socket,&id_modulo,sizeof(uint32_t),0);
+        log_error(logger,"Error al establecer conexion entre los modulos");
+        exit(EXIT_FAILURE);
+    }
+
+    return id_modulo_conectado;
+}
+
+int modulo_valido(uint32_t modulo){
+    return !(string_contains(identificadores_modulo(modulo),"ERROR"));
+}
+
+char* identificadores_modulo(uint32_t id_modulo){
+    switch(id_modulo){
+        case CONSOLA:       return "CONSOLA";
+        case KERNEL:        return "KERNEL";
+        case CPU_DISPATCH:  return "CPU DISPATCH";
+        case CPU_INTERRUPT: return "CPU INTERRUPT";
+        case MEMORIA:       return "MEMORIA";
+        default:            return "ERROR MODULO INCORRECTO";
+    }
+}

@@ -6,6 +6,7 @@
  *  
  */
 
+
 t_log* iniciar_logger(char* file, char* log_name) {
     t_log* nuevo_logger = log_create(file, log_name, 1, LOG_LEVEL_DEBUG );
     return nuevo_logger;
