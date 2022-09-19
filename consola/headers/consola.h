@@ -1,7 +1,8 @@
 #ifndef TP_2022_2C_CHAMACOS_CONSOLA_H
 #define TP_2022_2C_CHAMACOS_CONSOLA_H
 
-#include "../../shared/shared.h"
+
+#include "../../shared/headers/shared.h"
 
 #define LOG_FILE "consola.log"
 #define LOG_NAME "consola_log"

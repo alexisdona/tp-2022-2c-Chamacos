@@ -1,7 +1,7 @@
 #ifndef TP_2022_2C_CHAMACOS_KERNEL_H
 #define TP_2022_2C_CHAMACOS_KERNEL_H
 
-#include "../../shared/shared.h"
+#include "../../shared/headers/shared.h"
 
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
