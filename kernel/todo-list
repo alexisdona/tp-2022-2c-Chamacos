@@ -1,3 +1,7 @@
-15/09/2022 Carrillo Franco
+19/09/2022 - Carrillo Franco
+Espera por un cliente (consola), recibe las instrucciones y los segmentos.
+Corregir posible error en la serializacion/deserializacion.
+
+15/09/2022 - Carrillo Franco
 El modulo kernel levanta sus configuraciones y espera a por la conexion de una consola.
 Falta cerrar los sockets, destruir los configs y logger, administrar.

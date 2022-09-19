@@ -1,4 +1,4 @@
-#include "kernel.h"
+#include "../headers/kernel.h"
 
 int main(int argc, char* argv[]) {
 
@@ -14,6 +14,27 @@ int main(int argc, char* argv[]) {
     int socket_cliente = esperar_cliente(socket_srv_kernel,logger);
     uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL,logger);
 
+    while(socket_cliente > -1){
+        op_code codigo_operacion = recibir_operacion(socket_cliente);
+        switch(codigo_operacion){
+            case LISTA_INSTRUCCIONES:
+                log_info(logger,"Recibiendo una lista de instrucciones");
+                t_list* instrucciones = recibir_lista_instrucciones(socket_cliente);
+                uint32_t* segmentos = recibir_segmentos(socket_cliente);
+
+                printf("Instrucciones:\n");
+                for(int i=0; i<list_size(instrucciones); i++){
+                    logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
+                }
+                printf("Segmentos:\n");
+                for(int i=0; i < 4; i++){
+                    printf("Segmento: %d\n",segmentos[i]);
+                }
+                break;
+            default: ;
+        }
+    }
+
 }
 
 void validar_argumentos_main(int argumentos){
@@ -22,7 +43,7 @@ void validar_argumentos_main(int argumentos){
 		printf(RED"");
 		printf("Cantidad de parametros incorrectos.\n");
         printf(" > Expected: %d - Given: %d\n",expected,argumentos);
-		printf("   2- Archivo de configuracion\n");
+		printf("   1- Archivo de configuracion\n");
 		printf(RESET"");
 		exit(argumentos);
 	}
