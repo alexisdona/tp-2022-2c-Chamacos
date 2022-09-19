@@ -1,5 +1,2 @@
-//
-// Created by alecho on 11/9/22.
-//
+#include "../headers/memoria.h"
 
-#include "swap.h"
