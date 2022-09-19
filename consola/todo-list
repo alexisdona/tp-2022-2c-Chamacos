@@ -1,3 +1,7 @@
+19/09/2022 - Carrillo Franco
+Envio de instrucciones y tamaños de segmentos a kernel.
+Falta esperar por respuesta y gestionar el envio de la informacion solicitada por el kernel.
+
 15/09/2022 - Carrillo Franco
 Se genera la conexion con el Kernel y realizan el handshake inicial.
 Falta serializar las instrucciones ya generadas y enviarlas al kernel para esperar una respuesta.

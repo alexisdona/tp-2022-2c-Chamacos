@@ -1,4 +1,4 @@
-#include "consola.h"
+#include "../headers/consola.h"
 
 int main(int argc, char* argv[]) {
 
@@ -12,15 +12,22 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     FILE* archivo_pseudocodigo = fopen(archivo,"r");
-	t_queue* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
+	t_list* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
 
     char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
     int P_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
     int socket_consola = crear_conexion(IP_KERNEL,P_KERNEL);
     uint32_t respuesta = enviar_handshake_inicial(socket_consola,CONSOLA,logger);
+        
+    char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
+    uint32_t cantidad_segmentos=string_array_size(segmentos_config);
 
-    
+    uint32_t segmentos[cantidad_segmentos];
+    convertir_segmentos(segmentos,segmentos_config);
+
+    t_paquete* paquete = crear_paquete();
+    enviar_lista_instrucciones_segmentos(socket_consola,segmentos,instrucciones);
 
 	return EXIT_SUCCESS;
 }
@@ -37,9 +44,9 @@ void validar_argumentos_main(int argumentos){
 	}
 }
 
-t_queue* parsear_instrucciones(t_log* logger, FILE* archivo) {
+t_list* parsear_instrucciones(t_log* logger, FILE* archivo) {
 
-	t_queue* pseudocodigo = queue_create();
+	t_list* pseudocodigo = list_create();
 
     char* registro = NULL;
     size_t tam_registro=0;
@@ -47,7 +54,7 @@ t_queue* parsear_instrucciones(t_log* logger, FILE* archivo) {
     while(getline(&registro, &tam_registro, archivo) != -1){
         t_instruccion* instr = generar_instruccion(registro);
         logear_instruccion(logger,instr);
-        queue_push(pseudocodigo, instr);
+        list_add(pseudocodigo,instr);
     }
 
     return pseudocodigo;
@@ -105,4 +112,11 @@ registro_cpu obtener_registro_cpu(char* registro){
 dispositivo obtener_dispositivo(char* dispositivo){
     if(string_contains(dispositivo,"DISCO")) return DISCO;
     else                                     return IMPRESORA;
+}
+
+void convertir_segmentos(uint32_t segmentos[],char** segmentos_config){
+    uint32_t tam = string_array_size(segmentos_config);
+    for(uint32_t i=0; i < tam; i++){
+        segmentos[i] = atoi(segmentos_config[i]);
+    }
 }
