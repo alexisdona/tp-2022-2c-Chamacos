@@ -10,6 +10,7 @@
 #include<unistd.h>
 #include<stdint.h>
 #include<netdb.h>
+#include<semaphore.h>
 #include<sys/socket.h>
 #include<sys/types.h>
 #include<arpa/inet.h>
