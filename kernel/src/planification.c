@@ -35,10 +35,8 @@ t_pcb* pop_pcb_from_queue(pthread_mutex_t mutex, t_queue* cola){
 void long_planner(){
     pthread_t process_terminator_thread;
     pthread_create(&process_terminator_thread, NULL, process_terminator, NULL);
-
-    //Detach or join?
     pcb_to_dispatcher();
-
+    pthread_join(&process_terminator,NULL);
 }
 
 void pcb_to_dispatcher(){
@@ -47,6 +45,7 @@ void pcb_to_dispatcher(){
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = pop_pcb_from_queue(mutex_new,new_queue);
         push_pcb_to_queue(pcb,mutex_ready,ready_queue);
+        sem_post(&ready_to_running);
     }
 }
 
@@ -61,5 +60,32 @@ void process_terminator(){
 }
 
 void dispatcher(){
+    pthread_t ready_thread;
+    pthread_t blocked_page_fault_thread;
+    pthread_t blocked_io_thread;
+    pthread_t blocked_keyboard_thread;
+    pthread_t blocked_screen_thread;
+    pthread_t running_thread;
 
+    pthread_create(&ready_thread, NULL, ready_handler, NULL);
+    pthread_create(&running_thread, NULL, ready_handler, NULL);
+
+    pthread_join(&ready_thread,NULL);
+
+}
+
+void ready_handler(){
+    while(1){
+        sem_wait(&ready_to_running);
+        t_pcb* pcb = pop_pcb_from_queue(mutex_ready,ready_queue);
+        push_pcb_to_queue(pcb,mutex_running,running_queue);
+        sem_post(&execute_process);
+    }
+}
+
+void running_handler(){
+    while(1){
+        sem_wait(&execute_process);
+        //Enviar pcb a cpu
+    }
 }

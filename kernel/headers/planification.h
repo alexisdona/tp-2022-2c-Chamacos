@@ -5,7 +5,10 @@
 
 //Semaforos de sincronizacion
 sem_t grado_multiprogramacion;
+sem_t new_process;
 sem_t new_to_ready;
+sem_t ready_to_running;
+sem_t execute_process;
 sem_t finish_process;
 
 
@@ -26,6 +29,7 @@ t_queue* blocked_screen;
 t_queue* blocked_keyboard;
 t_queue* blocked_page_fault;
 t_queue* blocked_io;
+t_queue* running_queue;
 t_queue* exit;
 
 //Estructura pcb provisoria
@@ -56,6 +60,9 @@ void pcb_to_dispatcher();
 //Espera para finalizar un pcb
 void process_terminator();
 
-//Funciones del planificador de corto plazo
+//Funciones del planificador de corto plazo =================
+
+//Gestiona el pasaje de ready a running
+void ready_handler();
 
 #endif //TP_2022_2C_CHAMACOS_PLANIFICATION_H
