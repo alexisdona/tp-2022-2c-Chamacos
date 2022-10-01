@@ -8,6 +8,42 @@ LINK ENUNCIADO:
 
 ---
 
+## CHECKPOINT #3 OBLIGATORIO: PRESENCIAL
+
+_FECHA: 05/11/2022_
+
+### Objetivos 📌
+```
+ Realizar pruebas mínimas en un entorno distribuido.
+
+Módulo Consola (completo):
+* Atiende las peticiones del Kernel para imprimir por pantalla e ingresar input por teclado.
+
+Módulo Kernel:
+* Planificador de Largo Plazo funcionando, respetando el grado de multiprogramación.
+* Planificador de Corto plazo funcionando para los algoritmos RR y Colas Multinivel.
+* Manejo de estado de bloqueado sin Page Fault.
+
+Módulo CPU:
+* Implementa ciclo de instrucción completo.
+* Ejecuta instrucciones SET, ADD, IO y EXIT
+
+Módulo Memoria:
+* Responde de manera genérica a los mensajes de Kernel y CPU
+```
+
+### Documentacion 📖
+```
+* Sistemas Operativos, Stallings, William 5ta Ed. - Parte IV: Planificación
+* Sistemas Operativos, Silberschatz, Galvin 7ma Ed. - Capítulo 5: Planificación
+* Sistemas Operativos, Stallings, William 5ta Ed. - Parte VII: Gestión de la memoria (Cap. 7)
+* Guía de Debugging - https://docs.utnso.com.ar/guias/herramientas/debugger
+* Guía de Despliegue de TP - https://docs.utnso.com.ar/guias/herramientas/deploy
+* Guía de uso de Bash - https://docs.utnso.com.ar/guias/consola/bash
+```
+
+---
+
 ## CHECKPOINT #2 AVANCE
 
 _FECHA: 01/10/2022_
@@ -41,6 +77,7 @@ Módulo Memoria:
 * Guía de Serialización - https://docs.utnso.com.ar/guias/linux/serializacion
 * Charla de Threads y Sincronización - https://docs.utnso.com.ar/guias/linux/threads
 ```
+
 ---
 
 ## CHECKPOINT #1 INICIAL
