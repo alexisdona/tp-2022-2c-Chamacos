@@ -37,28 +37,12 @@ int levantar_servidor(){
 
 void esperar_consolas(int socket_srv){
     log_info(logger,"Esperando consolas..");
-    int socket_consola = esperar_cliente(socket_srv,logger);
-    uint32_t modulo = recibir_handshake_inicial(socket_consola,KERNEL,logger);
-
-    while(socket_consola > -1){
-        op_code codigo_operacion = recibir_operacion(socket_consola);
-        switch(codigo_operacion){
-            case LISTA_INSTRUCCIONES:
-                log_info(logger,"Recibiendo una lista de instrucciones");
-                t_list* instrucciones = recibir_lista_instrucciones(socket_consola);
-                uint32_t* segmentos = recibir_segmentos(socket_consola);
-
-                printf("Instrucciones:\n");
-                for(int i=0; i<list_size(instrucciones); i++){
-                    logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
-                }
-                printf("Segmentos:\n");
-                for(int i=0; i < 4; i++){
-                    printf("Segmento: %d\n",segmentos[i]);
-                }
-                break;
-            default: ;
-        }
+    while(1){
+        pthread_t thread_escucha_consola;
+        int socket_consola = esperar_cliente(socket_srv,logger);
+        uint32_t modulo = recibir_handshake_inicial(socket_consola,KERNEL,logger);
+        pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
+        pthread_detach(&thread_escucha_consola);
     }
 }
 
@@ -74,12 +58,15 @@ void esperar_modulos(int socket_srv){
         switch(modulo){
             case CPU_DISPATCH:
                         pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_cliente);
+                        pthread_detach(&thread_escucha_dispatch);
                         break;
             case CPU_INTERRUPT:
                         pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_cliente);
+                        pthread_detach(&thread_escucha_interrupt);
                         break;
             case MEMORIA:
                         pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_cliente);
+                        pthread_detach(&thread_escucha_memoria);
                         break;
             default: 
                         log_error(logger,string_from_format("Modulo desconocido actualmente %d",modulo));
@@ -91,20 +78,44 @@ void esperar_modulos(int socket_srv){
 void *conexion_dispatch(void* socket){
     int socket_dispatch = (intptr_t) socket;
     while(socket_dispatch != -1){
-        uint32_t op = recibir_operacion(socket_dispatch);
+        op_code codigo_operacion = recibir_operacion(socket_dispatch);
     }
 }
 
 void *conexion_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
     while(socket_interrupt != -1){
-        uint32_t op = recibir_operacion(socket_interrupt);
+        op_code codigo_operacion = recibir_operacion(socket_interrupt);
     }
 }
 
 void *conexion_memoria(void* socket){
     int socket_memoria = (intptr_t) socket;
     while(socket_memoria != -1){
-        uint32_t op = recibir_operacion(socket_memoria);
+        op_code codigo_operacion = recibir_operacion(socket_memoria);
+    }
+}
+
+void *conexion_consola(void* socket){
+    int socket_consola = (intptr_t) socket;
+    while(socket_consola != -1){
+        op_code codigo_operacion = recibir_operacion(socket_consola);
+        switch(codigo_operacion){
+            case LISTA_INSTRUCCIONES:
+                log_info(logger,"Recibiendo una lista de instrucciones");
+                t_list* instrucciones = recibir_lista_instrucciones(socket_consola);
+                for(int i=0; i<list_size(instrucciones); i++){
+                    logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
+                }
+                break;
+                
+            case SEGMENTOS:
+                log_info(logger,"Recibiendo segmentos");
+                int* segmentos = recibir_segmentos(socket_consola);
+                for(int i=0; i<sizeof(segmentos); i++){
+                    log_info(logger,string_from_format("Segmento: %d",segmentos[i]));
+                }
+            default: ;
+        }
     }
 }

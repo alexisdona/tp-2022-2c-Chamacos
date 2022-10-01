@@ -21,6 +21,7 @@ int main(int argc, char* argv[]){
 
 	int socket_kernel = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     uint32_t respuesta = enviar_handshake_inicial(socket_kernel,MEMORIA,logger);
+	usleep(10000000);
 
 }
 

@@ -20,6 +20,7 @@ int levantar_servidor();
 void esperar_modulos(int socket_srv);
 void esperar_consolas(int socket_srv);
 
+void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);

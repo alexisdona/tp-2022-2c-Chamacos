@@ -1,3 +1,7 @@
+01/10/2022 - Carrillo Franco
+Agregado de hilos para la gestion de las conexiones.
+Separacion de la recepcion de instrucciones y segmentos.
+
 19/09/2022 - Carrillo Franco
 Espera por un cliente (consola), recibe las instrucciones y los segmentos.
 Corregir posible error en la serializacion/deserializacion.
