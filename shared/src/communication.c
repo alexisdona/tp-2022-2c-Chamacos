@@ -89,7 +89,6 @@ int esperar_cliente(int socket_server, t_log* logger){
 
 int enviar_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
     uint32_t id_modulo_conectado;
-
     send(socket,&id_modulo,sizeof(uint32_t),0);
     recv(socket,&id_modulo_conectado,sizeof(uint32_t),MSG_WAITALL);
     if(modulo_valido(id_modulo_conectado)){
@@ -120,7 +119,7 @@ int recibir_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
 }
 
 int modulo_valido(uint32_t modulo){
-    return !(string_contains(identificadores_modulo(modulo),"ERROR"));
+    return (CONSOLA <= modulo && modulo <= MEMORIA);
 }
 
 char* identificadores_modulo(uint32_t id_modulo){
@@ -158,7 +157,7 @@ t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstru
     t_list *valores = list_create();
     while(desplazamiento < tamanioListaInstrucciones) {
         char* valor = malloc(tamanioInstruccion);
-        memcpy(valor, stream+ desplazamiento, tamanioInstruccion);
+        memcpy(valor, stream+desplazamiento, tamanioInstruccion);
         desplazamiento += tamanioInstruccion;
         list_add(valores, valor);
     }
@@ -279,8 +278,23 @@ t_list* recibir_lista_instrucciones(int socket_consola) {
 }
 
 uint32_t* recibir_segmentos(uint32_t socket){
-    uint32_t* segmentos = malloc(sizeof(uint32_t[4]));
-    recv(socket, &segmentos, sizeof(int), 0);
+    size_t tam_segmentos;
+    uint32_t desplazamiento=0;
+
+    recv(socket, &tam_segmentos, sizeof(size_t), 0);
+    void* stream = malloc(tam_segmentos);
+    void* valor = malloc(sizeof(uint32_t));
+
+    recv(socket, stream, tam_segmentos, 0);
+    uint32_t size_segmentos = sizeof(stream);
+    uint32_t segmentos[size_segmentos];
+
+    for(uint32_t i=0; i<size_segmentos; i++){
+        memcpy(valor, stream+desplazamiento, sizeof(uint32_t));
+        desplazamiento += sizeof(uint32_t);
+        segmentos[i] = (intptr_t) valor;
+    }
+
     return segmentos;
 }
 

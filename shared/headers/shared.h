@@ -10,6 +10,8 @@
 #include<unistd.h>
 #include<stdint.h>
 #include<netdb.h>
+#include<pthread.h>
+#include<semaphore.h>
 #include<sys/socket.h>
 #include<sys/types.h>
 #include<arpa/inet.h>
@@ -36,7 +38,7 @@
 #define MEMORIA         4
 
 
-#define CONNECTION_FILE "../connection.config"
+#define CONNECTION_FILE "../../connection.config"
 extern char* LOG_FILE;
 extern char* LOG_NAME;
 

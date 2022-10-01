@@ -119,5 +119,3 @@ void convertir_segmentos(uint32_t segmentos[],char** segmentos_config){
         segmentos[i] = atoi(segmentos_config[i]);
     }
 }
-
-
