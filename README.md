@@ -1,10 +1,47 @@
 # tp-2022-2c-ChamacOS
 
 LINK REPOSITORIO:  
-https://github.com/sisoputnfrba/tp-2022-2c-ChamacOS  
+[https://github.com/sisoputnfrba/tp-2022-2c-ChamacOS] 
 
 LINK ENUNCIADO:  
-https://docs.google.com/document/d/1xYmkJXRRddM51fQZfxr3CEuhNtFCWe5YU7hhvsUnTtg/edit  
+[https://docs.google.com/document/d/1xYmkJXRRddM51fQZfxr3CEuhNtFCWe5YU7hhvsUnTtg/edit]  
+
+---
+
+## CHECKPOINT #2 AVANCE
+
+_FECHA: 01/10/2022_
+
+### Objetivos 📌
+```
+Módulo Consola:
+
+* Obtener el contenido de los archivos de config y de pseudocódigo.
+* Parsear el archivo de pseudocódigo y enviar la información al Kernel.
+
+Módulo Kernel:
+* Crea las conexiones con la Memoria, la CPU y atención de las consolas
+* Generar estructuras base para administrar los PCB y sus estados con la información recibida por el módulo Consola.
+* Planificador de Largo Plazo funcionando, respetando el grado de multiprogramación.
+* Planificador de Corto Plazo funcionando con algoritmo FIFO.
+
+Módulo CPU:
+* Generar las estructuras de conexión con el proceso Kernel y Memoria.
+* Envía  y recibe el contexto de ejecución del módulo Kernel.
+
+Módulo Memoria:
+* Generar las estructuras de conexión con los procesos kernel y CPU.
+```
+
+### Documentacion 📖
+```
+* Sistemas Operativos, Stallings, William 5ta Ed. - Parte IV: Planificación
+* Sistemas Operativos, Silberschatz, Galvin 7ma Ed. - Capítulo 5: Planificación
+* Guía de Buenas Prácticas de C - https://docs.utnso.com.ar/guias/programacion/buenas-practicas
+* Guía de Serialización - https://docs.utnso.com.ar/guias/linux/serializacion
+* Charla de Threads y Sincronización - https://docs.utnso.com.ar/guias/linux/threads
+```
+---
 
 ## CHECKPOINT #1 INICIAL
 
