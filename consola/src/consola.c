@@ -26,8 +26,10 @@ int main(int argc, char* argv[]) {
     uint32_t segmentos[cantidad_segmentos];
     convertir_segmentos(segmentos,segmentos_config);
 
-    t_paquete* paquete = crear_paquete();
-    enviar_lista_instrucciones_segmentos(socket_consola,segmentos,instrucciones);
+    enviar_lista_instrucciones(socket_consola,instrucciones);
+    enviar_segmentos(socket,segmentos,cantidad_segmentos);
+
+    
 
 	return EXIT_SUCCESS;
 }
