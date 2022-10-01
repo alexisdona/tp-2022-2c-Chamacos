@@ -10,6 +10,7 @@
 #include<unistd.h>
 #include<stdint.h>
 #include<netdb.h>
+#include<pthread.h>
 #include<semaphore.h>
 #include<sys/socket.h>
 #include<sys/types.h>
@@ -72,6 +73,7 @@ typedef struct{
 typedef enum {
     MENSAJE,
     LISTA_INSTRUCCIONES,
+    SEGMENTOS,
     PCB
 } op_code;
 
@@ -128,7 +130,7 @@ int esperar_cliente(int socket_server, t_log* logger);
 /*Ejemplo: al conectarse la consola con el kernel, obtiene el codigo del kernel
     enviar_handshake_inicial(sc-consola,CONSOLA,logger) -> KERNEL
 */
-int enviar_handshake_inicial(int socket, uint32_t su_codigo, t_log* logger);
+int enviar_handshake_inicial(int socket, uint32_t mi_codigo, t_log* logger);
 
 //Recibe por el socket el identificador del modulo que se conecta y envia el codigo de si mismo
 /*Ejemplo: al recibir la conexion de la consola, recibe el codigo CONSOLA y envia KERNEL
@@ -174,7 +176,8 @@ void* recibir_buffer(int socket_cliente);
 
 void enviar_mensaje(char* mensaje, int socket);
 void recibir_mensaje(int socket_cliente, t_log* logger);
-void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones);
+void enviar_lista_instrucciones(uint32_t socket,t_list* instrucciones);
+void enviar_segmentos(uint32_t socket,uint32_t* segmentos,uint32_t cantidad_segmentos);
 t_list* recibir_lista_instrucciones(uint32_t socket);
 uint32_t* recibir_segmentos(uint32_t socket);
 #endif //TP_2022_1C_ECLIPSO_SHARED_H

@@ -1,3 +1,7 @@
+01/10/2022 - Carrillo Franco
+Agregado de hilos para la gestion de las conexiones.
+Separacion de la recepcion de instrucciones y segmentos.
+
 30/09/2022 - Carrillo Franco
 Preparado de semaforos para proteccion de colas.
 Preparado de semaforos de sincronizacion.
