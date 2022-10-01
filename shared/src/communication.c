@@ -206,7 +206,7 @@ void eliminar_paquete(t_paquete* paquete){
 op_code recibir_operacion(int socket_cliente){
     op_code cod_op;
 
-    if(recv(socket_cliente, &cod_op, sizeof(op_code), MSG_WAITALL) > 0) {
+    if (recv(socket_cliente, &cod_op, sizeof(op_code), MSG_WAITALL) > 0) {
         return cod_op;
     } else {
         close(socket_cliente);
@@ -265,33 +265,17 @@ void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[],
     eliminar_paquete(paquete);
 }
 
-t_list* recibirListaInstrucciones(int socket_consola) {
-    t_list * listaInstrucciones = list_create();
-    size_t tamanioTotalStream;
-    size_t tamanioListaInstrucciones;
-    recv(socket_consola, &tamanioTotalStream, sizeof(size_t), 0);
-    tamanioListaInstrucciones = tamanioTotalStream;
+t_list* recibir_lista_instrucciones(int socket_consola) {
+    t_list * lista_instrucciones = list_create();
+    size_t tamanio_total_stream;
+    size_t tamanio_lista_instrucciones;
+    recv(socket_consola, &tamanio_total_stream, sizeof(size_t), 0);
+    tamanio_lista_instrucciones = tamanio_total_stream;
 
-    void *stream = malloc(tamanioListaInstrucciones);
-    recv(socket_consola, stream, tamanioListaInstrucciones, 0); //le pido la cantidad de bytes que ocupa la lista de instrucciones nada mas
-    listaInstrucciones = deserializar_lista_instrucciones(stream, tamanioListaInstrucciones, listaInstrucciones);
-    return listaInstrucciones;
-}
-
-t_list* recibir_lista_instrucciones(uint32_t socket){
-    size_t tam_total_stream;
-    size_t tam_lista;
-
-    t_list* instrucciones = list_create();
-    printf("Size [4]: %d\tSize uint32: %d\n",sizeof(uint32_t[4]),sizeof(uint32_t));
-    uint32_t tam_segmentos = sizeof(uint32_t[4]);
-    recv(socket, &tam_total_stream, sizeof(size_t), 0);
-    tam_lista = tam_total_stream - tam_segmentos;
-
-    void *stream = malloc(tam_lista);
-    recv(socket, stream, tam_lista, 0);
-    instrucciones = deserializar_lista_instrucciones(stream,tam_lista,instrucciones);
-    return instrucciones;
+    void *stream = malloc(tamanio_lista_instrucciones);
+    recv(socket_consola, stream, tamanio_lista_instrucciones, 0); //le pido la cantidad de bytes que ocupa la lista de instrucciones nada mas
+    lista_instrucciones = deserializar_lista_instrucciones(stream, tamanio_lista_instrucciones, lista_instrucciones);
+    return lista_instrucciones;
 }
 
 uint32_t* recibir_segmentos(uint32_t socket){
@@ -323,9 +307,11 @@ void agregar_instruccion(t_paquete* paquete, void* instruccion){
     size_t tamanio_operandos = sizeof(operando) * 2;
     int tamanio_instruccion = sizeof(instr_code) + tamanio_operandos;
     paquete->buffer->stream =
-            realloc(paquete->buffer->stream, paquete->buffer->size + tamanio_instruccion + sizeof(int));
-
+            realloc(paquete->buffer->stream, paquete->buffer->size + tamanio_instruccion);
+    // copia la instruccion
     memcpy(paquete->buffer->stream + paquete->buffer->size, instruccion, sizeof(instr_code));
+    //copia los operandos
     memcpy(paquete->buffer->stream + paquete->buffer->size + sizeof(instr_code), instruccion + sizeof(instr_code), tamanio_operandos);
+
     paquete->buffer->size += tamanio_instruccion;
 }

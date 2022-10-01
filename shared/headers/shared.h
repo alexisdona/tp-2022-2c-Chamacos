@@ -71,7 +71,8 @@ typedef struct{
 typedef enum {
     MENSAJE,
     LISTA_INSTRUCCIONES,
-    PCB
+    PCB,
+    SEGMENTOS
 } op_code;
 
 typedef struct{
@@ -171,7 +172,7 @@ void* recibir_buffer(int socket_cliente);
 void enviar_mensaje(char* mensaje, int socket);
 void recibir_mensaje(int socket_cliente, t_log* logger);
 void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones);
-t_list* recibir_lista_instrucciones(uint32_t socket);
+t_list* recibir_lista_instrucciones(int socket);
 uint32_t* recibir_segmentos(uint32_t socket);
 
 void enviar_lista_instrucciones(uint32_t conexion, t_list* instrucciones);
@@ -181,6 +182,5 @@ void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
 
-t_list* recibirListaInstrucciones(int socket_consola);
 
 #endif //TP_2022_1C_ECLIPSO_SHARED_H
