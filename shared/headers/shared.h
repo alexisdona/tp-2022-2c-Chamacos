@@ -10,6 +10,8 @@
 #include<unistd.h>
 #include<stdint.h>
 #include<netdb.h>
+#include<pthread.h>
+#include<semaphore.h>
 #include<sys/socket.h>
 #include<sys/types.h>
 #include<arpa/inet.h>
@@ -127,7 +129,7 @@ int esperar_cliente(int socket_server, t_log* logger);
 /*Ejemplo: al conectarse la consola con el kernel, obtiene el codigo del kernel
     enviar_handshake_inicial(sc-consola,CONSOLA,logger) -> KERNEL
 */
-int enviar_handshake_inicial(int socket, uint32_t su_codigo, t_log* logger);
+int enviar_handshake_inicial(int socket, uint32_t mi_codigo, t_log* logger);
 
 //Recibe por el socket el identificador del modulo que se conecta y envia el codigo de si mismo
 /*Ejemplo: al recibir la conexion de la consola, recibe el codigo CONSOLA y envia KERNEL

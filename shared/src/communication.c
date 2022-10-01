@@ -89,7 +89,6 @@ int esperar_cliente(int socket_server, t_log* logger){
 
 int enviar_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
     uint32_t id_modulo_conectado;
-
     send(socket,&id_modulo,sizeof(uint32_t),0);
     recv(socket,&id_modulo_conectado,sizeof(uint32_t),MSG_WAITALL);
     if(modulo_valido(id_modulo_conectado)){
@@ -120,7 +119,7 @@ int recibir_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
 }
 
 int modulo_valido(uint32_t modulo){
-    return !(string_contains(identificadores_modulo(modulo),"ERROR"));
+    return (CONSOLA <= modulo && modulo <= MEMORIA);
 }
 
 char* identificadores_modulo(uint32_t id_modulo){
