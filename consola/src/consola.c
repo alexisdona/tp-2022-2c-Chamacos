@@ -7,7 +7,7 @@ int main(int argc, char* argv[]) {
     char* archivo = argv[1];
     char* CONFIG_FILE = argv[2];
 
-    logger = iniciar_logger(LOG_FILE,LOG_NAME);
+    logger = iniciar_logger(LOG_FILE, LOG_NAME);
     consola_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
@@ -15,26 +15,25 @@ int main(int argc, char* argv[]) {
 	t_list* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
 
     char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
-    int P_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
+    int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
-    int socket_consola = crear_conexion(IP_KERNEL,P_KERNEL);
-    uint32_t respuesta = enviar_handshake_inicial(socket_consola,CONSOLA,logger);
+    int socket_consola = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
+  //  uint32_t respuesta = enviar_handshake_inicial(socket_consola, CONSOLA, logger);
         
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     uint32_t cantidad_segmentos=string_array_size(segmentos_config);
 
-    uint32_t segmentos[cantidad_segmentos];
-    convertir_segmentos(segmentos,segmentos_config);
+   // uint32_t segmentos[cantidad_segmentos];
+    //convertir_segmentos(segmentos,segmentos_config);
 
-    t_paquete* paquete = crear_paquete();
-    enviar_lista_instrucciones_segmentos(socket_consola,segmentos,instrucciones);
-
+    enviar_lista_instrucciones(socket_consola, instrucciones);
+   // enviar_segmentos();
 	return EXIT_SUCCESS;
 }
 
 void validar_argumentos_main(int argumentos){
     uint32_t expected = 3;
-    if(argumentos < expected){
+    if (argumentos < expected){
 		printf(RED"");
 		printf("Cantidad de parametros incorrectos.\n");
         printf(" > Expected: %d - Given: %d\n",expected,argumentos);
@@ -46,18 +45,18 @@ void validar_argumentos_main(int argumentos){
 
 t_list* parsear_instrucciones(t_log* logger, FILE* archivo) {
 
-	t_list* pseudocodigo = list_create();
+	t_list* lista_instrucciones = list_create();
 
     char* registro = NULL;
     size_t tam_registro=0;
 
     while(getline(&registro, &tam_registro, archivo) != -1){
         t_instruccion* instr = generar_instruccion(registro);
-        logear_instruccion(logger,instr);
-        list_add(pseudocodigo,instr);
+        logear_instruccion(logger, instr);
+        list_add(lista_instrucciones, instr);
     }
 
-    return pseudocodigo;
+    return lista_instrucciones;
 }
 
 t_instruccion* generar_instruccion(char* registro){
@@ -94,11 +93,11 @@ t_instruccion* generar_instruccion(char* registro){
 }
 
 instr_code obtener_cop(char* operacion){
-	if(string_contains(operacion,"SET")) 		    return SET;
-	else if(string_contains(operacion,"ADD")) 	    return ADD;
-	else if(string_contains(operacion,"MOV_IN")) 	return MOV_IN;
-	else if(string_contains(operacion,"MOV_OUT")) 	return MOV_OUT;
-	else if(string_contains(operacion,"I/O"))       return IO;
+	if (string_contains(operacion,"SET")) 		    return SET;
+	else if (string_contains(operacion,"ADD")) 	    return ADD;
+	else if (string_contains(operacion,"MOV_IN")) 	return MOV_IN;
+	else if (string_contains(operacion,"MOV_OUT")) 	return MOV_OUT;
+	else if (string_contains(operacion,"I/O"))       return IO;
 	else                                            return EXIT;
 }
 
@@ -110,7 +109,7 @@ registro_cpu obtener_registro_cpu(char* registro){
 }
 
 dispositivo obtener_dispositivo(char* dispositivo){
-    if(string_contains(dispositivo,"DISCO")) return DISCO;
+    if (string_contains(dispositivo,"DISCO")) return DISCO;
     else                                     return IMPRESORA;
 }
 
@@ -120,3 +119,5 @@ void convertir_segmentos(uint32_t segmentos[],char** segmentos_config){
         segmentos[i] = atoi(segmentos_config[i]);
     }
 }
+
+

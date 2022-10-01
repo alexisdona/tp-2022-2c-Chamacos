@@ -36,7 +36,7 @@
 #define MEMORIA         4
 
 
-#define CONNECTION_FILE "../../connection.config"
+#define CONNECTION_FILE "../connection.config"
 extern char* LOG_FILE;
 extern char* LOG_NAME;
 
@@ -150,9 +150,6 @@ void crear_buffer(t_paquete* paquete);
 //Agrega un entero a un paquete
 void agregar_entero(t_paquete * paquete, uint32_t entero);
 
-//Agrega una instruccion al paquete
-void agregar_instruccion(t_paquete* paquete, void* instruccion);
-
 //Obtiene la instruccion deserialiada
 t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstrucciones, t_list* listaInstrucciones);
 
@@ -160,7 +157,7 @@ t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstru
 void* serializar_paquete(t_paquete* paquete, size_t bytes);
 
 //Envia el paquete por el socket
-int enviar_paquete(t_paquete* paquete, int socket_cliente);
+int enviar_paquete(t_paquete* paquete, int socket_destino);
 
 //Destruye el paquete y su memoria
 void eliminar_paquete(t_paquete* paquete);
@@ -176,4 +173,14 @@ void recibir_mensaje(int socket_cliente, t_log* logger);
 void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones);
 t_list* recibir_lista_instrucciones(uint32_t socket);
 uint32_t* recibir_segmentos(uint32_t socket);
+
+void enviar_lista_instrucciones(uint32_t conexion, t_list* instrucciones);
+
+void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
+
+//Agrega una instruccion al paquete
+void agregar_instruccion(t_paquete* paquete, void* instruccion);
+
+t_list* recibirListaInstrucciones(int socket_consola);
+
 #endif //TP_2022_1C_ECLIPSO_SHARED_H

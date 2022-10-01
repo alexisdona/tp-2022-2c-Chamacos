@@ -6,29 +6,28 @@ int main(int argc, char* argv[]) {
 
     char* CONFIG_FILE = argv[1];
 
-    logger = iniciar_logger(LOG_FILE,LOG_NAME);
+    logger = iniciar_logger(LOG_FILE, LOG_NAME);
     consola_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
     int socket_srv_kernel = levantar_servidor();
     int socket_cliente = esperar_cliente(socket_srv_kernel,logger);
     uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL,logger);
+    log_info(logger, "### ESPERANDO CONSOLAS ###");
 
     while(socket_cliente > -1){
         op_code codigo_operacion = recibir_operacion(socket_cliente);
         switch(codigo_operacion){
+            case MENSAJE:
+                recibir_mensaje(socket_cliente, logger);
+                break;
             case LISTA_INSTRUCCIONES:
                 log_info(logger,"Recibiendo una lista de instrucciones");
-                t_list* instrucciones = recibir_lista_instrucciones(socket_cliente);
-                uint32_t* segmentos = recibir_segmentos(socket_cliente);
-
+                t_list* instrucciones = recibirListaInstrucciones(socket_cliente);
+            //    uint32_t* segmentos = recibir_segmentos(socket_cliente);
                 printf("Instrucciones:\n");
                 for(int i=0; i<list_size(instrucciones); i++){
                     logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
-                }
-                printf("Segmentos:\n");
-                for(int i=0; i < 4; i++){
-                    printf("Segmento: %d\n",segmentos[i]);
                 }
                 break;
             default: ;
