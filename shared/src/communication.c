@@ -195,6 +195,7 @@ int enviar_paquete(t_paquete* paquete, int socket_cliente){
     size_t tamanioPayload = sizeof(size_t);
 
     size_t tamanioPaquete = tamanioCodigoOperacion + tamanioStream + tamanioPayload;
+    printf("Paquete [%d] - COP [%d] - Stream [%d] - Payload [%d]\n",tamanioPaquete,tamanioCodigoOperacion,tamanioStream,tamanioPayload);
     void* a_enviar = serializar_paquete(paquete, tamanioPaquete);
 
     if(send(socket_cliente, a_enviar, tamanioPaquete, 0) == -1){
@@ -267,39 +268,55 @@ void agregar_lista_instrucciones(t_paquete *paquete, t_list *instrucciones){
 }
 
 
-void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones){
+void enviar_lista_instrucciones(uint32_t socket, t_list* instrucciones){
 	t_paquete* paquete = crear_paquete();
 	paquete->codigo_operacion = LISTA_INSTRUCCIONES;
 
     agregar_lista_instrucciones(paquete, instrucciones);
-
-    uint32_t cant_segmentos = ((uint32_t) sizeof(&segmentos)) / (uint32_t) sizeof(uint32_t);
-
-    for(uint32_t i=0; i < cant_segmentos; i++){
-        agregar_entero(paquete, segmentos[i]);
-    }
     enviar_paquete(paquete, socket);
     eliminar_paquete(paquete);
 }
 
+void enviar_segmentos(uint32_t socket,uint32_t* segmentos, uint32_t cant_segmentos){
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = SEGMENTOS;
+
+    for(uint32_t i = 0; i < cant_segmentos; i++){
+        agregar_entero(paquete,segmentos[i]);
+    }
+    enviar_paquete(paquete,socket);
+    eliminar_paquete(paquete);
+}
+
 t_list* recibir_lista_instrucciones(uint32_t socket){
-    size_t tam_total_stream;
     size_t tam_lista;
 
     t_list* instrucciones = list_create();
-    printf("Size [4]: %d\tSize uint32: %d\n",sizeof(uint32_t[4]),sizeof(uint32_t));
-    uint32_t tam_segmentos = sizeof(uint32_t[4]);
-    recv(socket, &tam_total_stream, sizeof(size_t), 0);
-    tam_lista = tam_total_stream - tam_segmentos;
-
+    recv(socket, &tam_lista, sizeof(size_t), 0);
     void *stream = malloc(tam_lista);
+    
     recv(socket, stream, tam_lista, 0); 
     instrucciones = deserializar_lista_instrucciones(stream,tam_lista,instrucciones);
     return instrucciones;
 }
 
 uint32_t* recibir_segmentos(uint32_t socket){
-    uint32_t* segmentos = malloc(sizeof(uint32_t[4]));
-    recv(socket, &segmentos, sizeof(int), 0);
+    size_t tam_segmentos;
+    uint32_t desplazamiento=0;
+
+    recv(socket, &tam_segmentos, sizeof(size_t), 0);
+    void* stream = malloc(tam_segmentos);
+    void* valor = malloc(sizeof(uint32_t));
+
+    recv(socket, stream, tam_segmentos, 0); 
+    uint32_t size_segmentos = sizeof(stream);
+    uint32_t segmentos[size_segmentos];
+
+    for(uint32_t i=0; i<size_segmentos; i++){
+        memcpy(valor, stream+desplazamiento, sizeof(uint32_t));
+        desplazamiento += sizeof(uint32_t);
+        segmentos[i] = (intptr_t) valor; 
+    }
+
     return segmentos;
 }

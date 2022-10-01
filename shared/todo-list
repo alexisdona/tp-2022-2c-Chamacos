@@ -1,3 +1,7 @@
+01/10/2022 - Carrillo Franco
+Agregado de librerias para semaforos e hilos.
+Separacion de funciones: envio y recepcion de instrucciones y segmentos
+
 19/09/2022 - Carrillo Franco
 Estructurado de carpetas.
 Agregado de funciones para la comunicacion:
