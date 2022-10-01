@@ -1,4 +1,5 @@
-#include "../headers/consola.h"
+#include "headers/consola.h"
+#include <stdint.h>
 
 int main(int argc, char* argv[]) {
 
@@ -27,7 +28,7 @@ int main(int argc, char* argv[]) {
     convertir_segmentos(segmentos,segmentos_config);
 
     enviar_lista_instrucciones(socket_consola,instrucciones);
-    enviar_segmentos(socket,segmentos,cantidad_segmentos);
+    enviar_segmentos(socket_consola,segmentos,cantidad_segmentos); //TODO: chequear
 
     
 

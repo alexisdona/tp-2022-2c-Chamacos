@@ -1,4 +1,4 @@
-#include "../headers/shared.h"
+#include "headers/shared.h"
 
 t_config* init_connection_config() {
     return iniciar_config(CONNECTION_FILE);
