@@ -1,7 +1,7 @@
 #ifndef TP_2022_2C_CHAMACOS_MEMORIA_H
 #define TP_2022_2C_CHAMACOS_MEMORIA_H
 
-#include "../../shared/headers/shared.h"
+#include "../../../shared/src/headers/shared.h"
 
 #define LOG_FILE "memoria.log"
 #define LOG_NAME "memoria_log"

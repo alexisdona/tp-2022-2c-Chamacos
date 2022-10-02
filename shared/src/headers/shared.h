@@ -70,6 +70,7 @@ typedef struct{
     operando parametros[2];
 } t_instruccion;
 
+
 typedef enum {
     MENSAJE,
     LISTA_INSTRUCCIONES,

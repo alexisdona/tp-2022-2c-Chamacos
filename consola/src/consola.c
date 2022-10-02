@@ -1,4 +1,5 @@
-#include "../headers/consola.h"
+#include "headers/consola.h"
+#include <stdint.h>
 
 int main(int argc, char* argv[]) {
 
@@ -26,8 +27,11 @@ int main(int argc, char* argv[]) {
    // uint32_t segmentos[cantidad_segmentos];
     //convertir_segmentos(segmentos,segmentos_config);
 
-    enviar_lista_instrucciones(socket_consola, instrucciones);
-   // enviar_segmentos();
+    enviar_lista_instrucciones(socket_consola,instrucciones);
+  //  enviar_segmentos(socket,segmentos,cantidad_segmentos);
+
+    
+
 	return EXIT_SUCCESS;
 }
 

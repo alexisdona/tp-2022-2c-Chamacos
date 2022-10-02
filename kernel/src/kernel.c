@@ -1,4 +1,5 @@
-#include "../headers/kernel.h"
+#include "headers/kernel.h"
+#include "../../shared/src/headers/pcb.h"
 
 int main(int argc, char* argv[]) {
 
@@ -34,7 +35,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-}
+  }
 
 void validar_argumentos_main(int argumentos){
     uint32_t expected = 2;
@@ -62,7 +63,7 @@ void esperar_consolas(int socket_srv){
         int socket_consola = esperar_cliente(socket_srv,logger);
         uint32_t modulo = recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
-        pthread_detach(&thread_escucha_consola);
+        pthread_detach(thread_escucha_consola);
     }
 }
 
@@ -78,15 +79,15 @@ void esperar_modulos(int socket_srv){
         switch(modulo){
             case CPU_DISPATCH:
                         pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_cliente);
-                        pthread_detach(&thread_escucha_dispatch);
+                        pthread_detach(thread_escucha_dispatch);
                         break;
             case CPU_INTERRUPT:
                         pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_cliente);
-                        pthread_detach(&thread_escucha_interrupt);
+                        pthread_detach(thread_escucha_interrupt);
                         break;
             case MEMORIA:
                         pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_cliente);
-                        pthread_detach(&thread_escucha_memoria);
+                        pthread_detach(thread_escucha_memoria);
                         break;
             default:
                         log_error(logger,string_from_format("Modulo desconocido actualmente %d",modulo));
@@ -99,7 +100,17 @@ void *conexion_dispatch(void* socket){
     int socket_dispatch = (intptr_t) socket;
     while(socket_dispatch != -1){
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
+		switch(codigo_operacion){
+			case PCB:
+			    ;
+			    t_pcb* un_pcb;
+				dispatch_pcb(un_pcb, socket_dispatch);
+				break;
+			default:
+				perror("KERNEL -> Conexión Dispatch: Operacion desconocida");
+				break;
     }
+  }
 }
 
 void *conexion_interrupt(void* socket){

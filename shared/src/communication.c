@@ -1,4 +1,4 @@
-#include "../headers/shared.h"
+#include "headers/shared.h"
 
 t_config* init_connection_config() {
     return iniciar_config(CONNECTION_FILE);
@@ -151,6 +151,24 @@ void agregar_entero(t_paquete * paquete, uint32_t entero){
     paquete->buffer->size += sizeof(entero);
 }
 
+void agregar_ptr_entero(t_paquete * paquete, uint32_t *entero){
+    paquete->buffer->stream = realloc(paquete->buffer->stream, paquete->buffer->size + sizeof(entero));
+    memcpy(paquete->buffer->stream + paquete->buffer->size, &entero, sizeof(entero));
+    paquete->buffer->size += sizeof(entero);
+}
+
+
+void agregar_instruccion(t_paquete* paquete, void* instruccion){
+    size_t tamanioOperandos = sizeof(operando)*2;
+    int tamanio = sizeof(instr_code)+tamanioOperandos;
+    paquete->buffer->stream =
+            realloc(paquete->buffer->stream, paquete->buffer->size + tamanio + sizeof(int));
+
+    memcpy(paquete->buffer->stream + paquete->buffer->size, instruccion, sizeof(instr_code));
+    memcpy(paquete->buffer->stream + paquete->buffer->size + sizeof(instr_code), instruccion + sizeof(instr_code), tamanioOperandos);
+    paquete->buffer->size += tamanio;
+}
+
 t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstrucciones, t_list* listaInstrucciones){
     int desplazamiento = 0;
     size_t tamanioInstruccion = sizeof(instr_code)+sizeof(operando)*2;
@@ -178,15 +196,16 @@ void* serializar_paquete(t_paquete* paquete, size_t bytes){
     return magic;
 }
 
-int enviar_paquete(t_paquete* paquete, int socket_destino){
-    int tamanio_codigo_operacion = sizeof(op_code);
-    int tamanio_stream = paquete->buffer->size;
-    size_t tamanio_payload = sizeof(size_t);
+int enviar_paquete(t_paquete* paquete, int socket_cliente){
+    int tamanioCodigoOperacion = sizeof(op_code);
+    int tamanioStream = paquete->buffer->size;
+    size_t tamanioPayload = sizeof(size_t);
 
-    size_t tamanio_paquete = tamanio_codigo_operacion + tamanio_stream + tamanio_payload;
-    void* a_enviar = serializar_paquete(paquete, tamanio_paquete);
+    size_t tamanioPaquete = tamanioCodigoOperacion + tamanioStream + tamanioPayload;
+    printf("Paquete [%d] - COP [%d] - Stream [%d] - Payload [%d]\n",tamanioPaquete,tamanioCodigoOperacion,tamanioStream,tamanioPayload);
+    void* a_enviar = serializar_paquete(paquete, tamanioPaquete);
 
-    if(send(socket_destino, a_enviar, tamanio_paquete, 0) == -1){
+    if(send(socket_cliente, a_enviar, tamanioPaquete, 0) == -1){
         perror("Hubo un error enviando el paquete: ");
         free(a_enviar);
         return EXIT_FAILURE;
@@ -205,7 +224,7 @@ void eliminar_paquete(t_paquete* paquete){
 op_code recibir_operacion(int socket_cliente){
     op_code cod_op;
 
-    if (recv(socket_cliente, &cod_op, sizeof(op_code), MSG_WAITALL) > 0) {
+    if(recv(socket_cliente, &cod_op, sizeof(op_code), MSG_WAITALL) > 0) {
         return cod_op;
     } else {
         close(socket_cliente);
@@ -248,33 +267,44 @@ void recibir_mensaje(int socket_cliente, t_log* logger){
     free(buffer);
 }
 
+void agregar_lista_instrucciones(t_paquete *paquete, t_list *instrucciones){
+    for(uint32_t i=0; i < list_size(instrucciones); i++){
+        t_instruccion *instruccion = list_get(instrucciones, i);
+        agregar_instruccion(paquete, (void *) instruccion);
+    }
+}
 
-void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones){
+
+void enviar_lista_instrucciones(uint32_t socket, t_list* instrucciones){
 	t_paquete* paquete = crear_paquete();
 	paquete->codigo_operacion = LISTA_INSTRUCCIONES;
 
     agregar_lista_instrucciones(paquete, instrucciones);
-
-    uint32_t cant_segmentos = ((uint32_t) sizeof(&segmentos)) / (uint32_t) sizeof(uint32_t);
-
-    for(uint32_t i=0; i < cant_segmentos; i++){
-        agregar_entero(paquete, segmentos[i]);
-    }
     enviar_paquete(paquete, socket);
     eliminar_paquete(paquete);
 }
 
-t_list* recibir_lista_instrucciones(int socket_consola) {
-    t_list * lista_instrucciones = list_create();
-    size_t tamanio_total_stream;
-    size_t tamanio_lista_instrucciones;
-    recv(socket_consola, &tamanio_total_stream, sizeof(size_t), 0);
-    tamanio_lista_instrucciones = tamanio_total_stream;
+void enviar_segmentos(uint32_t socket,uint32_t* segmentos, uint32_t cant_segmentos){
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = SEGMENTOS;
 
-    void *stream = malloc(tamanio_lista_instrucciones);
-    recv(socket_consola, stream, tamanio_lista_instrucciones, 0); //le pido la cantidad de bytes que ocupa la lista de instrucciones nada mas
-    lista_instrucciones = deserializar_lista_instrucciones(stream, tamanio_lista_instrucciones, lista_instrucciones);
-    return lista_instrucciones;
+    for(uint32_t i = 0; i < cant_segmentos; i++){
+        agregar_entero(paquete,segmentos[i]);
+    }
+    enviar_paquete(paquete,socket);
+    eliminar_paquete(paquete);
+}
+
+t_list* recibir_lista_instrucciones(int socket){
+    size_t tam_lista;
+
+    t_list* instrucciones = list_create();
+    recv(socket, &tam_lista, sizeof(size_t), 0);
+    void *stream = malloc(tam_lista);
+    
+    recv(socket, stream, tam_lista, 0); 
+    instrucciones = deserializar_lista_instrucciones(stream,tam_lista,instrucciones);
+    return instrucciones;
 }
 
 uint32_t* recibir_segmentos(uint32_t socket){
@@ -285,47 +315,15 @@ uint32_t* recibir_segmentos(uint32_t socket){
     void* stream = malloc(tam_segmentos);
     void* valor = malloc(sizeof(uint32_t));
 
-    recv(socket, stream, tam_segmentos, 0);
+    recv(socket, stream, tam_segmentos, 0); 
     uint32_t size_segmentos = sizeof(stream);
     uint32_t segmentos[size_segmentos];
 
     for(uint32_t i=0; i<size_segmentos; i++){
         memcpy(valor, stream+desplazamiento, sizeof(uint32_t));
         desplazamiento += sizeof(uint32_t);
-        segmentos[i] = (intptr_t) valor;
+        segmentos[i] = (intptr_t) valor; 
     }
 
     return segmentos;
-}
-
-
-
-void enviar_lista_instrucciones(uint32_t conexion, t_list* instrucciones) {
-    t_paquete* paquete = crear_paquete();
-    paquete->codigo_operacion = LISTA_INSTRUCCIONES;
-
-    agregar_lista_instrucciones(paquete, instrucciones);
-    enviar_paquete(paquete, conexion);
-    eliminar_paquete(paquete);
-
-}
-
-void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones) {
-    for (uint32_t i=0; i < list_size(instrucciones); i++){
-        t_instruccion* instruccion = list_get(instrucciones, i);
-        agregar_instruccion(paquete, (void *) instruccion);
-    }
-}
-
-void agregar_instruccion(t_paquete* paquete, void* instruccion){
-    size_t tamanio_operandos = sizeof(operando) * 2;
-    int tamanio_instruccion = sizeof(instr_code) + tamanio_operandos;
-    paquete->buffer->stream =
-            realloc(paquete->buffer->stream, paquete->buffer->size + tamanio_instruccion);
-    // copia la instruccion
-    memcpy(paquete->buffer->stream + paquete->buffer->size, instruccion, sizeof(instr_code));
-    //copia los operandos
-    memcpy(paquete->buffer->stream + paquete->buffer->size + sizeof(instr_code), instruccion + sizeof(instr_code), tamanio_operandos);
-
-    paquete->buffer->size += tamanio_instruccion;
 }

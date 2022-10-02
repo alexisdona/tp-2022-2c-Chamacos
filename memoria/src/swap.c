@@ -1,2 +1,2 @@
-#include "../headers/memoria.h"
+#include "headers/memoria.h"
 
