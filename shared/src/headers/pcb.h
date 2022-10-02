@@ -18,6 +18,7 @@ typedef struct {
 typedef struct {
   uint32_t pid;
   uint32_t ppid;
+  t_list* lista_instrucciones;
   uint32_t program_counter;
   t_registros_pcb registros_pcb;
   t_segmentos datos_segmentos; // TODO: IMPLEMENTAR

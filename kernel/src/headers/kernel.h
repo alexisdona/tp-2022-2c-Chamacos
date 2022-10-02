@@ -2,6 +2,7 @@
 #define TP_2022_2C_CHAMACOS_KERNEL_H
 
 #include "../../../shared/src/headers/shared.h"
+#include "../../../shared/src/headers/pcb.h"
 
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
@@ -24,5 +25,7 @@ void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones);
+
 
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H

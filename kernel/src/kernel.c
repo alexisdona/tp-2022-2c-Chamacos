@@ -1,5 +1,6 @@
 #include "headers/kernel.h"
 #include "../../shared/src/headers/pcb.h"
+#include <unistd.h>
 
 int main(int argc, char* argv[]) {
 
@@ -28,6 +29,7 @@ int main(int argc, char* argv[]) {
                 for(int i=0; i<list_size(instrucciones); i++){
                     logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
                 }
+                t_pcb* pcb = crear_estructura_pcb(instrucciones);
                 break;
             case SEGMENTOS:
                 break;
@@ -138,6 +140,7 @@ void *conexion_consola(void* socket){
                 for(int i=0; i<list_size(instrucciones); i++){
                     logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
                 }
+                t_pcb* pcb = crear_estructura_pcb(instrucciones);
                 break;
 
             case SEGMENTOS:
@@ -149,4 +152,20 @@ void *conexion_consola(void* socket){
             default: ;
         }
     }
+}
+
+
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones) {
+    t_pcb *pcb =  malloc(sizeof(t_pcb));
+
+    pcb->pid = getpid();
+    pcb->ppid = getppid();
+    pcb->registros_pcb.registro_ax=0;
+    pcb->registros_pcb.registro_bx=0;
+    pcb->registros_pcb.registro_cx=0;
+    pcb->registros_pcb.registro_dx=0;
+    pcb->datos_segmentos.indice_tabla_paginas_segmentos = 0; //TODO
+    pcb->lista_instrucciones = lista_instrucciones;
+    pcb->program_counter= 0;
+    return pcb;
 }
