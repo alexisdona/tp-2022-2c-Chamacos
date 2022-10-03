@@ -44,7 +44,7 @@ void esperar_consolas(int socket_srv){
     while(1){
         pthread_t thread_escucha_consola;
         int socket_consola = esperar_cliente(socket_srv, logger);
-        recibir_handshake_inicial(socket_consola,KERNEL,logger);
+     //   recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
         pthread_detach(thread_escucha_consola);
     }
@@ -114,8 +114,11 @@ void *conexion_memoria(void* socket){
 
 void *conexion_consola(void* socket){
     int socket_consola = (intptr_t) socket;
+    log_info(logger, string_from_format("socket_consola: %d", socket_consola));
     while(socket_consola != -1){
         op_code codigo_operacion = recibir_operacion(socket_consola);
+        log_info(logger, string_from_format("codigo_operacion: %d", codigo_operacion));
+
         switch(codigo_operacion){
             case LISTA_INSTRUCCIONES:
                 log_info(logger,"Recibiendo una lista de instrucciones");

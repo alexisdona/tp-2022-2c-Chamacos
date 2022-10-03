@@ -26,12 +26,12 @@ int main(int argc, char* argv[]) {
 
    // uint32_t segmentos[cantidad_segmentos];
     //convertir_segmentos(segmentos,segmentos_config);
-    enviar_handshake_inicial(socket_kernel, CONSOLA, logger );
+  //  enviar_handshake_inicial(socket_kernel, CONSOLA, logger );
     enviar_lista_instrucciones(socket_kernel, instrucciones);
   //  enviar_segmentos(socket,segmentos,cantidad_segmentos);
 
-    
 
+    usleep(3567587328);
 	return EXIT_SUCCESS;
 }
 
