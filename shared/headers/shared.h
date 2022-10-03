@@ -20,6 +20,7 @@
 #include<commons/config.h>
 #include<commons/collections/list.h>
 #include<commons/collections/queue.h>
+#include "pcb.h"
 
 //Para prints de colores
 #define RED   "\x1B[31m"
@@ -38,7 +39,7 @@
 #define MEMORIA         4
 
 
-#define CONNECTION_FILE "../../connection.config"
+#define CONNECTION_FILE "../connection.config"
 extern char* LOG_FILE;
 extern char* LOG_NAME;
 
@@ -70,11 +71,12 @@ typedef struct{
     operando parametros[2];
 } t_instruccion;
 
+
 typedef enum {
     MENSAJE,
     LISTA_INSTRUCCIONES,
-    SEGMENTOS,
-    PCB
+    PCB,
+    SEGMENTOS
 } op_code;
 
 typedef struct{
@@ -130,7 +132,7 @@ int esperar_cliente(int socket_server, t_log* logger);
 /*Ejemplo: al conectarse la consola con el kernel, obtiene el codigo del kernel
     enviar_handshake_inicial(sc-consola,CONSOLA,logger) -> KERNEL
 */
-int enviar_handshake_inicial(int socket, uint32_t mi_codigo, t_log* logger);
+int enviar_handshake_inicial(int socket, uint32_t su_codigo, t_log* logger);
 
 //Recibe por el socket el identificador del modulo que se conecta y envia el codigo de si mismo
 /*Ejemplo: al recibir la conexion de la consola, recibe el codigo CONSOLA y envia KERNEL
@@ -153,9 +155,6 @@ void crear_buffer(t_paquete* paquete);
 //Agrega un entero a un paquete
 void agregar_entero(t_paquete * paquete, uint32_t entero);
 
-//Agrega una instruccion al paquete
-void agregar_instruccion(t_paquete* paquete, void* instruccion);
-
 //Obtiene la instruccion deserialiada
 t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstrucciones, t_list* listaInstrucciones);
 
@@ -163,7 +162,7 @@ t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstru
 void* serializar_paquete(t_paquete* paquete, size_t bytes);
 
 //Envia el paquete por el socket
-int enviar_paquete(t_paquete* paquete, int socket_cliente);
+int enviar_paquete(t_paquete* paquete, int socket_destino);
 
 //Destruye el paquete y su memoria
 void eliminar_paquete(t_paquete* paquete);
@@ -176,8 +175,16 @@ void* recibir_buffer(int socket_cliente);
 
 void enviar_mensaje(char* mensaje, int socket);
 void recibir_mensaje(int socket_cliente, t_log* logger);
-void enviar_lista_instrucciones(uint32_t socket,t_list* instrucciones);
-void enviar_segmentos(uint32_t socket,uint32_t* segmentos,uint32_t cantidad_segmentos);
-t_list* recibir_lista_instrucciones(uint32_t socket);
+void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones);
+t_list* recibir_lista_instrucciones(int socket);
 uint32_t* recibir_segmentos(uint32_t socket);
+
+void enviar_lista_instrucciones(uint32_t conexion, t_list* instrucciones);
+
+void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
+
+//Agrega una instruccion al paquete
+void agregar_instruccion(t_paquete* paquete, void* instruccion);
+
+
 #endif //TP_2022_1C_ECLIPSO_SHARED_H

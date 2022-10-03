@@ -151,6 +151,13 @@ void agregar_entero(t_paquete * paquete, uint32_t entero){
     paquete->buffer->size += sizeof(entero);
 }
 
+void agregar_ptr_entero(t_paquete * paquete, uint32_t *entero){
+    paquete->buffer->stream = realloc(paquete->buffer->stream, paquete->buffer->size + sizeof(entero));
+    memcpy(paquete->buffer->stream + paquete->buffer->size, &entero, sizeof(entero));
+    paquete->buffer->size += sizeof(entero);
+}
+
+
 void agregar_instruccion(t_paquete* paquete, void* instruccion){
     size_t tamanioOperandos = sizeof(operando)*2;
     int tamanio = sizeof(instr_code)+tamanioOperandos;
@@ -288,7 +295,7 @@ void enviar_segmentos(uint32_t socket,uint32_t* segmentos, uint32_t cant_segment
     eliminar_paquete(paquete);
 }
 
-t_list* recibir_lista_instrucciones(uint32_t socket){
+t_list* recibir_lista_instrucciones(int socket){
     size_t tam_lista;
 
     t_list* instrucciones = list_create();
