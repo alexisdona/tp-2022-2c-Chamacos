@@ -1,6 +1,4 @@
-#include "headers/kernel.h"
-#include "../../shared/src/headers/pcb.h"
-#include <unistd.h>
+#include "../headers/kernel.h"
 
 int main(int argc, char* argv[]) {
 

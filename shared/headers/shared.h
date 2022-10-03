@@ -20,6 +20,7 @@
 #include<commons/config.h>
 #include<commons/collections/list.h>
 #include<commons/collections/queue.h>
+#include "pcb.h"
 
 //Para prints de colores
 #define RED   "\x1B[31m"

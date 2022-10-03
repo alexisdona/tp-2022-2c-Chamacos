@@ -1,4 +1,4 @@
-#include "../src/headers/cpu.h"
+#include "../headers/cpu.h"
 
 int main(int argc, char* argv[]){
 
