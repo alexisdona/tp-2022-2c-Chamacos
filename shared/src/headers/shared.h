@@ -38,7 +38,7 @@
 #define MEMORIA         4
 
 
-#define CONNECTION_FILE "../../connection.config"
+#define CONNECTION_FILE "../connection.config"
 extern char* LOG_FILE;
 extern char* LOG_NAME;
 

@@ -1,5 +1,4 @@
 #include "headers/kernel.h"
-#include "../../shared/src/headers/pcb.h"
 #include <unistd.h>
 
 int main(int argc, char* argv[]) {
@@ -13,29 +12,11 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     int socket_srv_kernel = levantar_servidor();
-    int socket_cliente = esperar_cliente(socket_srv_kernel,logger);
+   // esperar_modulos(socket_srv_kernel);
+    esperar_consolas(socket_srv_kernel);
+
     log_info(logger, "### ESPERANDO CONSOLAS ###");
 
-    while(socket_cliente > -1){
-        op_code codigo_operacion = recibir_operacion(socket_cliente);
-        switch(codigo_operacion){
-            case MENSAJE:
-                recibir_mensaje(socket_cliente, logger);
-                break;
-            case LISTA_INSTRUCCIONES:
-                log_info(logger,"Recibiendo una lista de instrucciones");
-                t_list* instrucciones = recibir_lista_instrucciones(socket_cliente);
-                printf("Instrucciones:\n");
-                for(int i=0; i<list_size(instrucciones); i++){
-                    logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
-                }
-                t_pcb* pcb = crear_estructura_pcb(instrucciones);
-                break;
-            case SEGMENTOS:
-                break;
-            default: ;
-        }
-    }
 
   }
 
@@ -55,15 +36,15 @@ int levantar_servidor(){
     char* ip_kernel = config_get_string_value(communication_config,"IP_KERNEL");
     char* puerto_kernel = config_get_string_value(communication_config,"PUERTO_KERNEL");
 
-    return iniciar_servidor(ip_kernel,puerto_kernel,logger);
+    return iniciar_servidor(ip_kernel, puerto_kernel,logger);
 }
 
 void esperar_consolas(int socket_srv){
     log_info(logger,"Esperando consolas..");
     while(1){
         pthread_t thread_escucha_consola;
-        int socket_consola = esperar_cliente(socket_srv,logger);
-        uint32_t modulo = recibir_handshake_inicial(socket_consola,KERNEL,logger);
+        int socket_consola = esperar_cliente(socket_srv, logger);
+        recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
         pthread_detach(thread_escucha_consola);
     }
@@ -106,10 +87,12 @@ void *conexion_dispatch(void* socket){
 			case PCB:
 			    ;
 			    t_pcb* un_pcb;
-				dispatch_pcb(un_pcb, socket_dispatch);
+				//dispatch_pcb(un_pcb, socket_dispatch);
 				break;
+		    case -1:
+		        break;
 			default:
-				perror("KERNEL -> Conexión Dispatch: Operacion desconocida");
+			    perror("KERNEL -> Conexión Dispatch: Operacion desconocida");
 				break;
     }
   }
