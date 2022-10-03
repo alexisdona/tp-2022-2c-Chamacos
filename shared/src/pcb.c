@@ -1,4 +1,5 @@
-#include "headers/pcb.h"
+#include "../headers/shared.h"
+#include "../headers/pcb.h"
 
 void dispatch_pcb(t_pcb* pcb, int dispatch_socket){
   t_paquete* package = crear_paquete();

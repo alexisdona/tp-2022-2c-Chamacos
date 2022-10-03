@@ -1,4 +1,4 @@
-#include "headers/kernel.h"
+#include "../headers/kernel.h"
 #include <unistd.h>
 
 int main(int argc, char* argv[]) {

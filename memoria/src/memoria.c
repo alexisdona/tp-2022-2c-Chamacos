@@ -1,4 +1,4 @@
-#include "headers/memoria.h"
+#include "../headers/memoria.h"
 
 int main(int argc, char* argv[]){
 
