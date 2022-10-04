@@ -19,19 +19,18 @@ int main(int argc, char* argv[]) {
     int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
     int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
-  //  uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
+    uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
         
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     uint32_t cantidad_segmentos = string_array_size(segmentos_config);
 
-   // uint32_t segmentos[cantidad_segmentos];
+    //uint32_t segmentos[cantidad_segmentos];
     //convertir_segmentos(segmentos,segmentos_config);
-  //  enviar_handshake_inicial(socket_kernel, CONSOLA, logger );
     enviar_lista_instrucciones(socket_kernel, instrucciones);
-  //  enviar_segmentos(socket,segmentos,cantidad_segmentos);
+    //enviar_segmentos(socket_kernel,segmentos,cantidad_segmentos);
 
+    while(socket_kernel != -1);
 
-    usleep(3567587328);
 	return EXIT_SUCCESS;
 }
 

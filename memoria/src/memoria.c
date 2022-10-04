@@ -13,6 +13,7 @@ int main(int argc, char* argv[]){
 	//Levanto el servidor de memoria
     int socket_srv_memoria = levantar_servidor();
     //Espero la conexion de la cpu
+    log_info(logger,"Esperando CPU..");
 	int socket_cliente = esperar_cliente(socket_srv_memoria,logger);
     uint32_t modulo = recibir_handshake_inicial(socket_cliente,MEMORIA,logger);
 
@@ -21,7 +22,8 @@ int main(int argc, char* argv[]){
 
 	int socket_kernel = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     uint32_t respuesta = enviar_handshake_inicial(socket_kernel,MEMORIA,logger);
-	usleep(10000000);
+	
+    while(socket_kernel != -1);
 
 }
 

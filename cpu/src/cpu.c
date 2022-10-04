@@ -24,7 +24,7 @@ int main(int argc, char* argv[]){
 	int socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     uint32_t respuesta_interrupt = enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
 
-	usleep(10000000);
+	while(socket_kernel_dispatch != -1);
 
 }
 

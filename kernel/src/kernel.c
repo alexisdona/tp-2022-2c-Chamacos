@@ -2,19 +2,25 @@
 
 int main(int argc, char* argv[]) {
 
+    ultimo_pid=0;
+
     validar_argumentos_main(argc);
 
     char* CONFIG_FILE = argv[1];
 
     logger = iniciar_logger(LOG_FILE, LOG_NAME);
-    consola_config = iniciar_config(CONFIG_FILE);
+    kernel_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
-    int socket_srv_kernel = levantar_servidor();
-   // esperar_modulos(socket_srv_kernel);
-    esperar_consolas(socket_srv_kernel);
+    uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
 
-    log_info(logger, "### ESPERANDO CONSOLAS ###");
+    inicializar_mutex();
+    inicializar_semaforos_sincronizacion(grado_max_multiprogramacion);
+    iniciar_planificacion();
+
+    int socket_srv_kernel = levantar_servidor();
+    esperar_modulos(socket_srv_kernel);
+    esperar_consolas(socket_srv_kernel);
 
   }
 
@@ -42,14 +48,14 @@ void esperar_consolas(int socket_srv){
     while(1){
         pthread_t thread_escucha_consola;
         int socket_consola = esperar_cliente(socket_srv, logger);
-     //   recibir_handshake_inicial(socket_consola,KERNEL,logger);
+        recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
         pthread_detach(thread_escucha_consola);
     }
 }
 
 void esperar_modulos(int socket_srv){
-
+    log_info(logger,"Esperando modulos..");
     uint32_t cantidad_modulos = 3; //Dispatch - Interrupt - Memoria
 
     for(int i=0; i < cantidad_modulos; i++){
@@ -125,14 +131,17 @@ void *conexion_consola(void* socket){
                     logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
                 }
                 t_pcb* pcb = crear_estructura_pcb(instrucciones);
+                agregar_pcb_a_cola(pcb,&mutex_new,new_queue);
+                sem_post(&new_to_ready);
                 break;
-
+/*
             case SEGMENTOS:
                 log_info(logger,"Recibiendo segmentos");
                 int* segmentos = recibir_segmentos(socket_consola);
                 for(int i=0; i<sizeof(segmentos); i++){
                     log_info(logger, string_from_format("Segmento: %d",segmentos[i]));
                 }
+*/
             default: ;
         }
     }
@@ -141,9 +150,7 @@ void *conexion_consola(void* socket){
 
 t_pcb* crear_estructura_pcb(t_list* lista_instrucciones) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
-
-    pcb->pid = getpid();
-    pcb->ppid = getppid();
+    pcb->pid = ultimo_pid;
     pcb->registros_pcb.registro_ax=0;
     pcb->registros_pcb.registro_bx=0;
     pcb->registros_pcb.registro_cx=0;
@@ -151,5 +158,112 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones) {
     pcb->datos_segmentos.indice_tabla_paginas_segmentos = 0; //TODO
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
+
+    ultimo_pid++;
+
     return pcb;
+}
+
+void iniciar_planificacion(){
+    log_info(logger,"Iniciando planificadores..");
+    pthread_t dispatcher;
+    pthread_t long_planner;
+
+    pthread_create(&long_planner, NULL, planificador_largo_plazo, NULL);
+    pthread_detach(long_planner);
+    pthread_create(&dispatcher, NULL, planificador_corto_plazo, NULL);
+    pthread_detach(dispatcher);
+}
+
+void inicializar_mutex(){
+    pthread_mutex_init(&mutex_new,NULL);
+    pthread_mutex_init(&mutex_ready,NULL);
+    pthread_mutex_init(&mutex_running,NULL);
+    pthread_mutex_init(&mutex_blocked_screen,NULL);
+    pthread_mutex_init(&mutex_blocked_keyboard,NULL);
+    pthread_mutex_init(&mutex_blocked_page_fault,NULL);
+    pthread_mutex_init(&mutex_blocked_io,NULL);
+    pthread_mutex_init(&mutex_exit,NULL);
+}
+
+void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
+    sem_init(&grado_multiprogramacion,0,multiprogramacion);
+    sem_init(&new_process,0,0);
+    sem_init(&new_to_ready,0,0);
+    sem_init(&ready_to_running,0,0);
+    sem_init(&execute_process,0,0);
+    sem_init(&finish_process,0,0);
+}
+
+void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t* mutex, t_queue* cola){
+    pthread_mutex_lock(mutex);
+    queue_push(cola,pcb);
+    pthread_mutex_unlock(mutex);
+}
+
+t_pcb* quitar_pcb_de_cola(pthread_mutex_t* mutex, t_queue* cola){
+    pthread_mutex_lock(mutex);
+    t_pcb* pcb = queue_pop(cola);
+    pthread_mutex_unlock(mutex);
+    return pcb;
+}
+
+void* planificador_largo_plazo(void* x){
+    log_info(logger,"Iniciando Planificador Largo plazo..");
+    pthread_t process_terminator_thread;
+    pthread_create(&process_terminator_thread, NULL, finalizador_procesos, NULL);
+    pcb_a_dispatcher();
+    pthread_join(process_terminator_thread,NULL);
+}
+
+void pcb_a_dispatcher(){
+    while(1){
+        sem_wait(&new_to_ready);
+        sem_wait(&grado_multiprogramacion);
+        t_pcb* pcb = quitar_pcb_de_cola(&mutex_new,new_queue);
+        agregar_pcb_a_cola(pcb,&mutex_ready,ready_queue);
+        sem_post(&ready_to_running);
+    }
+}
+
+void* finalizador_procesos(void* x){
+    while(1){
+        sem_wait(&finish_process);
+        t_pcb* pcb = quitar_pcb_de_cola(&mutex_exit,exit_queue);
+        free(pcb);
+        //Avisar a memoria
+        //Avisar a consola
+    }
+}
+
+void* planificador_corto_plazo(void* x){
+    log_info(logger,"Iniciando Planificador Corto plazo..");
+    pthread_t ready_thread;
+    pthread_t blocked_page_fault_thread;
+    pthread_t blocked_io_thread;
+    pthread_t blocked_keyboard_thread;
+    pthread_t blocked_screen_thread;
+    pthread_t running_thread;
+
+    pthread_create(&ready_thread, NULL, manejador_estado_ready, NULL);
+    pthread_create(&running_thread, NULL, manejador_estado_running, NULL);
+
+    pthread_join(ready_thread,NULL);
+
+}
+
+void* manejador_estado_ready(void* x){
+    while(1){
+        sem_wait(&ready_to_running);
+        t_pcb* pcb = quitar_pcb_de_cola(&mutex_ready,ready_queue);
+        agregar_pcb_a_cola(pcb,&mutex_running,running_queue);
+        sem_post(&execute_process);
+    }
+}
+
+void* manejador_estado_running(void* x){
+    while(1){
+        sem_wait(&execute_process);
+        //Enviar pcb a cpu
+    }
 }
