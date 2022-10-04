@@ -21,7 +21,7 @@ sem_t grado_multiprogramacion;
 sem_t new_process;
 sem_t new_to_ready;
 sem_t ready_to_running;
-sem_t execute_process;
+sem_t cpu_libre;
 sem_t finish_process;
 
 //Mutex para proteger las colas
@@ -33,6 +33,16 @@ pthread_mutex_t mutex_blocked_keyboard;
 pthread_mutex_t mutex_blocked_page_fault;
 pthread_mutex_t mutex_blocked_io;
 pthread_mutex_t mutex_exit;
+
+//Sockets de modulos
+int socket_dispatch;
+int socket_interrupt;
+int socket_memoria;
+
+//Mutex para proteccion de sockets
+pthread_mutex_t mutex_dispatch;
+pthread_mutex_t mutex_interrupt;
+pthread_mutex_t mutex_memoria;
 
 t_queue* new_queue;
 t_queue* exit_queue;
@@ -66,8 +76,8 @@ void* planificador_corto_plazo(void*);
 void inicializar_mutex();
 void inicializar_semaforos_sincronizacion(uint32_t grado_multiprogramacion);
 
-void agregar_pcb_a_cola(t_pcb*,pthread_mutex_t*,t_queue*);
-t_pcb* quitar_pcb_de_cola(pthread_mutex_t* , t_queue* cola);
+void agregar_pcb_a_cola(t_pcb*,pthread_mutex_t, t_queue*);
+t_pcb* quitar_pcb_de_cola(pthread_mutex_t, t_queue* cola);
 
 //Funciones del planificador de largo plazo =================
 

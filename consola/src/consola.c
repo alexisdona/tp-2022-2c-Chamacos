@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
     uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
-    t_list* segmentos = convertir_segmentos(segmentos_config);
+    t_list* segmentos = convertir_segmentos(segmentos_config); 
 
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
     list_destroy(instrucciones);
@@ -135,6 +135,7 @@ t_list* convertir_segmentos(char** segmentos_config){
         list_add(lista_segmentos, (void*) atoi(segmentos_config[i]));
     }
     return lista_segmentos;
+
 }
 
 void terminar_programa(uint32_t conexion, t_log* logger, t_config* config) {
