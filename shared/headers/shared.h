@@ -74,9 +74,8 @@ typedef struct{
 
 typedef enum {
     MENSAJE,
-    LISTA_INSTRUCCIONES,
-    PCB,
-    SEGMENTOS
+    LISTA_INSTRUCCIONES_SEGMENTOS,
+    PCB
 } op_code;
 
 typedef struct{
@@ -155,8 +154,12 @@ void crear_buffer(t_paquete* paquete);
 //Agrega un entero a un paquete
 void agregar_entero(t_paquete * paquete, uint32_t entero);
 
-//Obtiene la instruccion deserialiada
-t_list* deserializar_lista_instrucciones(void* stream, size_t tamanioListaInstrucciones, t_list* listaInstrucciones);
+//Obtiene las instrucciones deserialiada
+t_list *deserializar_lista_instrucciones(void *stream, size_t tamanio_lista_instrucciones);
+
+//Obtiene los segmentos deserialiados
+t_list *deserializar_lista_segmentos(void *stream, size_t tamanio_lista_segmentos);
+
 
 //Serializa el paquete para poder ser enviado
 void* serializar_paquete(t_paquete* paquete, size_t bytes);
@@ -175,12 +178,8 @@ void* recibir_buffer(int socket_cliente);
 
 void enviar_mensaje(char* mensaje, int socket);
 void recibir_mensaje(int socket_cliente, t_log* logger);
-void enviar_lista_instrucciones_segmentos(uint32_t socket, uint32_t segmentos[], t_list* instrucciones);
 t_list* recibir_lista_instrucciones(int socket);
-uint32_t* recibir_segmentos(uint32_t socket);
-
-void enviar_lista_instrucciones(uint32_t conexion, t_list* instrucciones);
-
+t_list* recibir_lista_segmentos(int socket);
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
 
 //Agrega una instruccion al paquete

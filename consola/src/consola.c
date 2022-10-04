@@ -20,19 +20,31 @@ int main(int argc, char* argv[]) {
 
     int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
     uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
-        
+
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
-    uint32_t cantidad_segmentos = string_array_size(segmentos_config);
+    t_list* segmentos = convertir_segmentos(segmentos_config);
 
-    //uint32_t segmentos[cantidad_segmentos];
-    //convertir_segmentos(segmentos,segmentos_config);
-    enviar_lista_instrucciones(socket_kernel, instrucciones);
-    //enviar_segmentos(socket_kernel,segmentos,cantidad_segmentos);
+    enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
+    list_destroy(instrucciones);
+    list_destroy(segmentos);
 
-    while(socket_kernel != -1);
+    while(socket_kernel!=-1){
 
-	return EXIT_SUCCESS;
+        op_code cod_op = recibir_operacion(socket_kernel);
+        switch (cod_op) {
+            case MENSAJE:
+                recibir_mensaje(socket_kernel, logger);
+                break;
+            default:
+                log_trace(logger, "Operación desconocida en consola");
+                terminar_programa(socket_kernel, logger, communication_config);
+                break;
+        }
+    }
+    return EXIT_SUCCESS;
+
 }
+
 
 void validar_argumentos_main(int argumentos){
     uint32_t expected = 3;
@@ -116,9 +128,21 @@ dispositivo obtener_dispositivo(char* dispositivo){
     else                                     return IMPRESORA;
 }
 
-void convertir_segmentos(uint32_t segmentos[],char** segmentos_config){
+t_list* convertir_segmentos(char** segmentos_config){
+    t_list* lista_segmentos = list_create();
     uint32_t tam = string_array_size(segmentos_config);
     for(uint32_t i=0; i < tam; i++){
-        segmentos[i] = atoi(segmentos_config[i]);
+        list_add(lista_segmentos, (void*) atoi(segmentos_config[i]));
     }
+    return lista_segmentos;
+}
+
+void terminar_programa(uint32_t conexion, t_log* logger, t_config* config) {
+
+    log_info(logger, "Consola: Terminando programa...");
+    log_destroy(logger);
+    if(config!=NULL) {
+        config_destroy(config);
+    }
+    close(conexion);
 }

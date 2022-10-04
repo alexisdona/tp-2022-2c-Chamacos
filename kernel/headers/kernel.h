@@ -50,11 +50,11 @@ int levantar_servidor();
 void esperar_modulos(int socket_srv);
 void esperar_consolas(int socket_srv);
 
-void* conexion_consola(void* socket_consola);
-void* conexion_dispatch(void* socket_dispatch);
-void* conexion_interrupt(void* socket_interrupt);
-void* conexion_memoria(void* socket_memoria);
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones);
+void *conexion_consola(void* socket_consola);
+void *conexion_dispatch(void* socket_dispatch);
+void *conexion_interrupt(void* socket_interrupt);
+void *conexion_memoria(void* socket_memoria);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos);
 
 // Funciones de planificacion ===============================
 
