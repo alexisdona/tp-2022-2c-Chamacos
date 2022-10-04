@@ -296,7 +296,7 @@ void agregar_lista_segmentos(t_paquete* paquete, t_list* segmentos){
     printf("\ncantidad de segmentos: %d\n", cantidad_segmentos);
     agregar_entero(paquete, cantidad_segmentos);
     for(uint32_t i=0; i < list_size(segmentos); i++){
-       uint32_t segmento = (uint32_t) list_get(segmentos, i);
+        uint32_t segmento = (uint32_t) list_get(segmentos, i);
         agregar_entero(paquete,  segmento);
     }
 }
@@ -336,8 +336,6 @@ t_list* recibir_lista_segmentos(int socket){
     void *stream = malloc(cantidad_segmentos*tamanio_segmento);
 
     recv(socket, stream, (cantidad_segmentos*tamanio_segmento), 0);
-
     t_list* segmentos = deserializar_lista_segmentos(stream, (cantidad_segmentos * tamanio_segmento));
     return segmentos;
 }
-
