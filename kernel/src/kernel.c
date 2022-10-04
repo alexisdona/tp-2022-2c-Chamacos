@@ -118,28 +118,26 @@ void *conexion_consola(void* socket){
         log_info(logger, string_from_format("codigo_operacion: %d", codigo_operacion));
 
         switch(codigo_operacion){
-            case LISTA_INSTRUCCIONES:
-                log_info(logger,"Recibiendo una lista de instrucciones");
+            case LISTA_INSTRUCCIONES_SEGMENTOS:
+                log_info(logger,"Recibiendo una lista de instrucciones y segmentos");
                 t_list* instrucciones = recibir_lista_instrucciones(socket_consola);
                 for(int i=0; i<list_size(instrucciones); i++){
-                    logear_instruccion(logger,(t_instruccion*) list_get(instrucciones,i));
+                    logear_instruccion(logger,(t_instruccion*) list_get(instrucciones, i));
                 }
-                t_pcb* pcb = crear_estructura_pcb(instrucciones);
+                t_list* segmentos = recibir_lista_segmentos(socket_consola);
+                for(int i=0; i<list_size(segmentos); i++){
+                    printf("segmento[%d]: %d",i, (uint32_t *) list_get(segmentos, i));
+                }
+                t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
                 break;
-
-            case SEGMENTOS:
-                log_info(logger,"Recibiendo segmentos");
-                int* segmentos = recibir_segmentos(socket_consola);
-                for(int i=0; i<sizeof(segmentos); i++){
-                    log_info(logger, string_from_format("Segmento: %d",segmentos[i]));
-                }
-            default: ;
+            default:
+                break;
         }
     }
 }
 
 
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones) {
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = getpid();
@@ -148,7 +146,8 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones) {
     pcb->registros_pcb.registro_bx=0;
     pcb->registros_pcb.registro_cx=0;
     pcb->registros_pcb.registro_dx=0;
-    pcb->datos_segmentos.indice_tabla_paginas_segmentos = 0; //TODO
+    pcb->datos_segmentos.indice_tabla_paginas_segmentos = 0;
+    pcb->datos_segmentos.segmentos = segmentos;
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
     return pcb;

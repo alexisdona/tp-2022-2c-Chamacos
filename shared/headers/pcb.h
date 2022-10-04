@@ -12,7 +12,7 @@ typedef struct {
 
 typedef struct {
     uint32_t indice_tabla_paginas_segmentos;
-   // uint32_t* segmentos[3]; //TODO revisar
+    t_list* segmentos; //TODO revisar
 } t_segmentos;
 
 typedef struct {

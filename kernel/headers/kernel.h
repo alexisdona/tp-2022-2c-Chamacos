@@ -25,7 +25,7 @@ void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos);
 
 
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H
