@@ -23,10 +23,10 @@ int main(int argc, char* argv[]) {
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* segmentos = convertir_segmentos(segmentos_config); 
-
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
     list_destroy(instrucciones);
     list_destroy(segmentos);
+
 
     while(socket_kernel!=-1){
 

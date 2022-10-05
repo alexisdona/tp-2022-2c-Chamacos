@@ -40,6 +40,7 @@
 
 
 #define CONNECTION_FILE "../../connection.config"
+
 extern char* LOG_FILE;
 extern char* LOG_NAME;
 

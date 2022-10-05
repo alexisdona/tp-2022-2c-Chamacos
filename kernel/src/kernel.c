@@ -96,7 +96,7 @@ void* conexion_dispatch(void* socket){
 			    t_pcb* un_pcb;
                 //recibir_pcb
                 //pthread_mutex_unlock(&mutex_dispatch);
-				dispatch_pcb(un_pcb, socket_dispatch);
+				//dispatch_pcb(un_pcb, socket_dispatch);
 				break;
 		    case -1:
 		        break;
@@ -241,7 +241,7 @@ void pcb_a_dispatcher(){
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_new,new_queue);
         agregar_pcb_a_cola(pcb,mutex_ready,ready_queue);
-        log_info(logger,string_from_format("PID: <%d> - Estado Anterior <NEW>    - Estado Actual <READY>",pcb->pid));
+        log_info(logger,string_from_format("PID: <%d> - Estado Anterior <NEW>   - Estado Actual <READY>",pcb->pid));
         sem_post(&ready_to_running);
     }
 }
