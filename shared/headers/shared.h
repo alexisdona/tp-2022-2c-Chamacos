@@ -76,7 +76,9 @@ typedef struct{
 typedef enum {
     MENSAJE,
     LISTA_INSTRUCCIONES_SEGMENTOS,
-    PCB
+    PCB,
+    INTERRUPCION,
+    CONTINUA_PROCESO
 } op_code;
 
 typedef struct{
