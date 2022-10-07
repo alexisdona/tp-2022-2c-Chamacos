@@ -49,7 +49,8 @@ pthread_mutex_t mutex_memoria;
 
 t_queue* new_queue;
 t_queue* exit_queue;
-t_queue* ready_queue;
+t_queue* ready1_queue;
+t_queue* ready2_queue;
 t_queue* blocked_screen_queue;
 t_queue* blocked_keyboard_queue;
 t_queue* blocked_page_fault_queue;
