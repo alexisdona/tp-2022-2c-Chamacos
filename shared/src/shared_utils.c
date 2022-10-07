@@ -15,7 +15,7 @@ t_log* iniciar_logger(char* file, char* log_name) {
 t_config* iniciar_config(char* file) {
     t_config* nuevo_config;
     if((nuevo_config = config_create(file)) == NULL) {
-        printf(RED"No se pudo leer la configuracion\n");
+        printf(RED"No se pudo leer la configuracion: %s\n",file);
         exit(EXIT_FAILURE);
     }
     return nuevo_config;
