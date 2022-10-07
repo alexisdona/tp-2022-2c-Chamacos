@@ -39,6 +39,7 @@ int main(int argc, char* argv[]){
 	sem_init(&desalojar_pcb,0,0);
 	sem_init(&continuar_ciclo_instruccion,0,0);
 	
+	sem_wait(&continuar_ciclo_instruccion);
 	comenzar_ciclo_instruccion();
 
 }
@@ -159,19 +160,19 @@ op_code fase_execute(t_instruccion* instruccion, uint32_t operador){
 }
 
 op_code operacion_SET(registro_cpu* registro,uint32_t valor){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <SET> - <%s> - <%d>",pcb->pid,traducir_registro_cpu(registro),valor));
+	log_info(logger,string_from_format("PID: <%d> - Ejecutando <SET> - <%s> - <%d>",pcb->pid,traducir_registro_cpu(*registro),valor));
 	(*registro) = valor;
 	return CONTINUA_PROCESO;
 }
 
 op_code operacion_ADD(registro_cpu* registro1,registro_cpu registro2){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <ADD> - <%s> - <%s>",pcb->pid,traducir_registro_cpu(registro1),traducir_registro_cpu(registro2)));
+	log_info(logger,string_from_format("PID: <%d> - Ejecutando <ADD> - <%s> - <%s>",pcb->pid,traducir_registro_cpu(*registro1),traducir_registro_cpu(registro2)));
 	(*registro1) = (*registro1 + registro2);
 	return CONTINUA_PROCESO;
 }
 
 op_code operacion_MOV_IN(registro_cpu* registro,uint32_t direccion_logica){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>",pcb->pid,traducir_registro_cpu(registro),direccion_logica));
+	log_info(logger,string_from_format("PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>",pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
 	(*registro) = direccion_logica;
 	return CONTINUA_PROCESO;
 }

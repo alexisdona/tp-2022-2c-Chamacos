@@ -19,7 +19,7 @@ pthread_t thread_escucha_memoria;
 pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
 
-pthread_t mutex_flag_interrupcion;
+pthread_mutex_t mutex_flag_interrupcion;
 
 //Semaforos de sincronizacion entre hilos de cpu
 sem_t desalojar_pcb;
