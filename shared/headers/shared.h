@@ -155,10 +155,10 @@ void crear_buffer(t_paquete* paquete);
 void agregar_entero(t_paquete * paquete, uint32_t entero);
 
 //Obtiene las instrucciones deserialiada
-t_list *deserializar_lista_instrucciones(void *stream, size_t tamanio_lista_instrucciones);
+t_list *deserializar_lista_instrucciones(void *stream, uint32_t tamanio_lista_instrucciones);
 
 //Obtiene los segmentos deserialiados
-t_list *deserializar_lista_segmentos(void *stream, size_t tamanio_lista_segmentos);
+t_list *deserializar_lista_segmentos(void *stream, uint32_t tamanio_lista_segmentos);
 
 
 //Serializa el paquete para poder ser enviado
@@ -184,6 +184,8 @@ void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
 
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
+void enviar_PCB(int socket_destino, t_pcb* pcb);
+t_pcb* recibir_PCB(int socket_desde);
 
 
 #endif //TP_2022_1C_ECLIPSO_SHARED_H

@@ -15,6 +15,8 @@ pthread_t thread_escucha_memoria;
 pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
 
+int socket_cpu_dispatch;
+
 //Obtiene el ip y puerto del kernel para iniciar el servidor, devuele el socket
 int levantar_servidor();
 

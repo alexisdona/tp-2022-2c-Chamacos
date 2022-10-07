@@ -129,6 +129,7 @@ void *conexion_consola(void* socket){
                     printf("segmento[%d]: %d",i, (uint32_t *) list_get(segmentos, i));
                 }
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
+                enviar_PCB(socket_cpu_dispatch, pcb);
                 break;
             default:
                 break;
@@ -141,7 +142,6 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = getpid();
-    pcb->ppid = getppid();
     pcb->registros_pcb.registro_ax=0;
     pcb->registros_pcb.registro_bx=0;
     pcb->registros_pcb.registro_cx=0;
