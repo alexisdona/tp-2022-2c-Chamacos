@@ -36,6 +36,9 @@ int main(int argc, char* argv[]){
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
 
 	retardo_operacion_cpu = config_get_int_value(cpu_config,"RETARDO_INSTRUCCION");
+	sem_init(&desalojar_pcb,0,0);
+	sem_init(&continuar_ciclo_instruccion,0,0);
+	
 	comenzar_ciclo_instruccion();
 
 }
@@ -65,6 +68,9 @@ void* conexion_dispatch(void* socket){
         op_code codigo_operacion = recibir_operacion(socket_dispatch);	
 		if(codigo_operacion == PCB){
 			//recibirPCB
+			sem_post(&continuar_ciclo_instruccion);			
+			sem_wait(&desalojar_pcb);
+			//enviarPCB
 		}else{
 			log_error(logger,"Conexion Dispatch: codigo de operacion desconocido");
 		}
@@ -79,6 +85,7 @@ void* conexion_interrupt(void* socket){
 			pthread_mutex_lock(&mutex_flag_interrupcion);
 			hubo_interrupcion = INTERRUPCION;	
 			pthread_mutex_unlock(&mutex_flag_interrupcion);
+			log_info(logger,"Interrupcion recibida...");
 		}else{
 			log_error(logger,"Conexion Interrupt: codigo de operacion desconocido");
 		}
@@ -88,21 +95,23 @@ void* conexion_interrupt(void* socket){
 //--------Ciclo de instruccion---------
 void comenzar_ciclo_instruccion(){
 
-	op_code proceso_respuesta = CONTINUA_PROCESO;
+	estado_proceso = CONTINUA_PROCESO;
 	operando operador = 0;
 
 	log_info(logger,"Iniciando ciclo de instruccion...");
 
-	while(proceso_respuesta == CONTINUA_PROCESO){
+	while(estado_proceso == CONTINUA_PROCESO){
 		t_instruccion* instruccion = fase_fetch();
 		int requiero_operador = fase_decode(instruccion);
 
 		if(requiero_operador) {
 			operador = fase_fetch_operand(instruccion->parametros[1]);
 		}
-		proceso_respuesta = fase_execute(instruccion, operador);
-		if(proceso_respuesta == CONTINUA_PROCESO){
-			proceso_respuesta = chequear_interrupcion(proceso_respuesta);
+		estado_proceso = fase_execute(instruccion, operador);
+		if(estado_proceso == CONTINUA_PROCESO){
+			chequear_interrupcion();
+		}else{
+			chequear_desalojo_proceso();
 		}
 	}
 
@@ -183,17 +192,27 @@ op_code operacion_EXIT(){
 	return FINALIZAR_PROCESO;
 }
 
-op_code chequear_interrupcion(op_code proceso_respuesta){
+void chequear_interrupcion(){
+	
 	pthread_mutex_lock(&mutex_flag_interrupcion);
-	uint32_t interrupt = hubo_interrupcion;
+	op_code interrupt = hubo_interrupcion;
 	pthread_mutex_unlock(&mutex_flag_interrupcion);
 
 	if(interrupt == INTERRUPCION){
-		log_info(logger,"SE PRODUJO UNA INTERRUPCION");
-		//enviar PCB
-		return DESALOJAR_PROCESO;
-	}else{
-		return proceso_respuesta;
+		log_info(logger,"Atendiendo interrupcion...");
+		sem_post(&desalojar_pcb);
+		estado_proceso = INTERRUPCION;
+		sem_wait(&continuar_ciclo_instruccion);
+		pthread_mutex_unlock(&mutex_flag_interrupcion);
+		hubo_interrupcion = CONTINUA_PROCESO;
+		pthread_mutex_lock(&mutex_flag_interrupcion);
 	}
+
+}
+
+void chequear_desalojo_proceso(){
+	sem_post(&desalojar_pcb);
+	sem_wait(&continuar_ciclo_instruccion);
+	estado_proceso = CONTINUA_PROCESO;
 }
 

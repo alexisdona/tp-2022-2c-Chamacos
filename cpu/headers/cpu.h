@@ -13,12 +13,17 @@ t_log* logger;
 uint32_t hubo_interrupcion;
 uint32_t retardo_operacion_cpu;
 t_pcb* pcb;
+op_code estado_proceso;
 
 pthread_t thread_escucha_memoria;
 pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
 
-pthread_mutex_t mutex_flag_interrupcion;
+pthread_t mutex_flag_interrupcion;
+
+//Semaforos de sincronizacion entre hilos de cpu
+sem_t desalojar_pcb;
+sem_t continuar_ciclo_instruccion;
 
 //Conexiones a otros modulos
 void* conexion_dispatch(void* socket);
@@ -37,6 +42,7 @@ op_code operacion_MOV_IN(registro_cpu*,uint32_t direccion);
 op_code operacion_MOV_OUT(uint32_t direccion,registro_cpu);
 op_code operacion_IO(dispositivo,uint32_t unidades_trabajo);
 op_code operacion_EXIT();
-op_code chequear_interrupcion(op_code proceso_respuesta);
+void chequear_interrupcion();
+void chequear_desalojo_proceso();
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H
