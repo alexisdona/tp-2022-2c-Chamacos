@@ -57,30 +57,31 @@ void esperar_consolas(int socket_srv){
 
 void esperar_modulos(int socket_srv){
     log_info(logger,"Esperando modulos..");
-    printf("\n");
     uint32_t cantidad_modulos = 3; //Dispatch - Interrupt - Memoria
-
     for(int i=0; i < cantidad_modulos; i++){
-
         int socket_cliente = esperar_cliente(socket_srv,logger);
         uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL,logger);
 
         switch(modulo){
             case CPU_DISPATCH:
-                        pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_cliente);
-                        pthread_detach(thread_escucha_dispatch);
-                        break;
+                pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_cliente);
+                pthread_detach(thread_escucha_dispatch);
+                break;
             case CPU_INTERRUPT:
-                        pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_cliente);
-                        pthread_detach(thread_escucha_interrupt);
-                        break;
+                if(algoritmo_planificacion_tiene_desalojo()){
+                    pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_cliente);
+                    pthread_detach(thread_escucha_interrupt);
+                }else{
+                    close(conexion_interrupt);
+                }
+                break;
             case MEMORIA:
-                        pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_cliente);
-                        pthread_detach(thread_escucha_memoria);
-                        break;
+                pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_cliente);
+                pthread_detach(thread_escucha_memoria);
+                break;
             default:
-                        log_error(logger,string_from_format("Modulo desconocido actualmente %d",modulo));
-                        i--;
+                log_error(logger,string_from_format("Modulo desconocido actualmente %d",modulo));
+                i--;
         }
     }
 }
@@ -109,8 +110,12 @@ void* conexion_dispatch(void* socket){
 
 void* conexion_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
+    uint32_t micro_quantum = quantum * 1000;
     while(socket_interrupt != -1){
-        op_code codigo_operacion = recibir_operacion(socket_interrupt);
+        usleep(micro_quantum);
+        enviar_interrupcion(socket_interrupt);
+        sem_wait(&recibi_pcb_en_ejecucion);
+        sem_post(&cpu_libre);
     }
 }
 
@@ -172,6 +177,10 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
 
 void iniciar_planificacion(){
     log_info(logger,"Iniciando planificadores..");
+
+    algoritmo_planificacion = config_get_string_value(kernel_config,"ALGORITMO_PLANIFICACION");
+    quantum = config_get_int_value(kernel_config,"QUANTUM_RR");
+
     pthread_t dispatcher;
     pthread_t long_planner;
 
@@ -212,6 +221,7 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&ready_to_running,0,0);
     sem_init(&cpu_libre,0,1);
     sem_init(&finish_process,0,0);
+    sem_init(&recibi_pcb_en_ejecucion,0,0);
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
@@ -225,6 +235,10 @@ t_pcb* quitar_pcb_de_cola(pthread_mutex_t mutex, t_queue* cola){
     t_pcb* pcb = queue_pop(cola);
     pthread_mutex_unlock(&mutex);
     return pcb;
+}
+
+int algoritmo_planificacion_tiene_desalojo(){
+    return !string_equals_ignore_case(algoritmo_planificacion,"FIFO");
 }
 
 void* planificador_largo_plazo(void* x){

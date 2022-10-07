@@ -7,6 +7,8 @@
 #define LOG_NAME "kernel_log"
 
 uint32_t ultimo_pid;
+uint32_t quantum;
+char* algoritmo_planificacion;
 
 t_config* kernel_config;
 t_config* communication_config;
@@ -23,6 +25,7 @@ sem_t new_to_ready;
 sem_t ready_to_running;
 sem_t cpu_libre;
 sem_t finish_process;
+sem_t recibi_pcb_en_ejecucion;
 
 //Mutex para proteger las colas
 pthread_mutex_t mutex_new;
@@ -78,6 +81,8 @@ void inicializar_semaforos_sincronizacion(uint32_t grado_multiprogramacion);
 
 void agregar_pcb_a_cola(t_pcb*,pthread_mutex_t, t_queue*);
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t, t_queue* cola);
+
+int algoritmo_planificacion_tiene_desalojo();
 
 //Funciones del planificador de largo plazo =================
 
