@@ -187,7 +187,8 @@ void recibir_mensaje(int socket_cliente, t_log* logger);
 t_list* recibir_lista_instrucciones(int socket);
 t_list* recibir_lista_segmentos(int socket);
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
-
+void enviar_pcb(uint32_t socket, t_pcb* pcb);
+t_pcb* recibir_pcb(uint32_t socket);
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
 

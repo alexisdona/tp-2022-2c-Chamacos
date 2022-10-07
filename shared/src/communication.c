@@ -339,3 +339,8 @@ t_list* recibir_lista_segmentos(int socket){
     t_list* segmentos = deserializar_lista_segmentos(stream, (cantidad_segmentos * tamanio_segmento));
     return segmentos;
 }
+
+void enviar_interrupcion(int socket){
+    op_code codigo = INTERRUPCION;
+    send(socket,&codigo,sizeof(op_code),0);
+}

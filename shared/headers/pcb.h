@@ -24,8 +24,5 @@ typedef struct {
 } t_pcb;
 
 
-
-void dispatch_pcb(t_pcb* , int dispatch_socket);
-
 #endif //TP_2022_2C_GECK_PCB_H
 
