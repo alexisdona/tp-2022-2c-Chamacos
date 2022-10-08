@@ -159,14 +159,14 @@ void agregar_ptr_entero(t_paquete * paquete, uint32_t *entero){
 
 
 void agregar_instruccion(t_paquete* paquete, void* instruccion){
-    size_t tamanioOperandos = sizeof(operando)*2;
-    int tamanio = sizeof(instr_code)+tamanioOperandos;
+    size_t tamanio_operando = sizeof(operando);
+    int tamanio_instruccion = sizeof(instr_code) + tamanio_operando*2;
     paquete->buffer->stream =
-            realloc(paquete->buffer->stream, paquete->buffer->size + tamanio + sizeof(int));
+            realloc(paquete->buffer->stream, (paquete->buffer->size + tamanio_instruccion));
 
     memcpy(paquete->buffer->stream + paquete->buffer->size, instruccion, sizeof(instr_code));
-    memcpy(paquete->buffer->stream + paquete->buffer->size + sizeof(instr_code), instruccion + sizeof(instr_code), tamanioOperandos);
-    paquete->buffer->size += tamanio;
+    memcpy(paquete->buffer->stream + paquete->buffer->size + sizeof(instr_code), instruccion + sizeof(instr_code), (tamanio_operando*2));
+    paquete->buffer->size += tamanio_instruccion;
 }
 
 t_list* deserializar_lista_instrucciones(void *stream, uint32_t tamanio_lista_instrucciones) {
@@ -195,7 +195,6 @@ t_list *deserializar_lista_segmentos(void *stream, uint32_t tamanio_lista_segmen
     }
     return valores;
 }
-
 
 void* serializar_paquete(t_paquete* paquete, size_t bytes){
     void * magic = malloc(bytes);
@@ -295,8 +294,7 @@ void agregar_lista_segmentos(t_paquete* paquete, t_list* segmentos){
     uint32_t cantidad_segmentos = list_size(segmentos);
     agregar_entero(paquete, cantidad_segmentos);
     for(uint32_t i=0; i < list_size(segmentos); i++){
-       uint32_t segmento = (uint32_t) list_get(segmentos, i);
-        agregar_entero(paquete,  segmento);
+        agregar_entero(paquete, ((uint32_t*) list_get(segmentos, i)));
     }
 }
 
@@ -364,61 +362,54 @@ t_pcb* recibir_PCB(int socket_desde){
     t_list* lista_instrucciones = list_create();
     t_list* lista_segmentos = list_create();
     void* buffer;
-    uint32_t tamanio_total_stream;
-    uint32_t tamanio_valores_fijos=0;
+    size_t tamanio_total_stream; //en la estructura t_buffer es de este tipo el size
     uint32_t tamanio_lista_instrucciones;
     uint32_t tamanio_instruccion = sizeof(instr_code)+2*sizeof(operando);
     uint32_t tamanio_lista_segmentos;
-
     uint32_t auxiliar;
-    recv(socket_desde, &tamanio_total_stream, sizeof(uint32_t), 0); //tamaño total del buffer
+    recv(socket_desde, &tamanio_total_stream, sizeof(size_t), MSG_WAITALL); //tamaño total del buffer
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->pid = auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->program_counter = (uint32_t) auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->registros_pcb.registro_ax = auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->registros_pcb.registro_bx = auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->registros_pcb.registro_cx = auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->registros_pcb.registro_dx = auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->datos_segmentos.indice_tabla_paginas_segmentos = auxiliar;
-    tamanio_valores_fijos+=sizeof(uint32_t);
 
     //recibo primero la cantidad de elementos de la lista de instrucciones
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     tamanio_lista_instrucciones = auxiliar*tamanio_instruccion;
+    buffer = malloc(tamanio_lista_instrucciones);
     //con el tamaño de la lista de instrucciones y el tamaño que ya se que ocupa una instruccion recibo todo el buffer
     recv(socket_desde, buffer, tamanio_lista_instrucciones, 0 );
+
     lista_instrucciones = deserializar_lista_instrucciones(buffer, tamanio_lista_instrucciones);
     pcb->lista_instrucciones = lista_instrucciones;
 
     //recibo primero la cantidad de elementos de la lista de segmentos
-    recv(socket_desde, &auxiliar, tamanio_lista_instrucciones, 0 );
+    recv(socket_desde, &auxiliar, sizeof (uint32_t), 0 );
     tamanio_lista_segmentos = auxiliar*sizeof(uint32_t); //el segmento es un numero de tipo uint32_t
+    buffer = malloc(tamanio_lista_segmentos);
     recv(socket_desde, buffer, tamanio_lista_segmentos, 0 );
     lista_segmentos = deserializar_lista_segmentos(buffer, tamanio_lista_segmentos);
     pcb->datos_segmentos.segmentos = lista_segmentos;
 
     return pcb;
 }
-
 
 void enviar_interrupcion(int socket){
     op_code codigo = INTERRUPCION;

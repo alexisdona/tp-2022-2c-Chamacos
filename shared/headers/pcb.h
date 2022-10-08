@@ -12,15 +12,15 @@ typedef struct {
 
 typedef struct {
     uint32_t indice_tabla_paginas_segmentos;
-    t_list* segmentos; //TODO revisar
+    t_list* segmentos;
 } t_segmentos;
 
 typedef struct {
   uint32_t pid;
-  t_list* lista_instrucciones;
   uint32_t program_counter;
   t_registros_pcb registros_pcb;
-  t_segmentos datos_segmentos; // TODO: IMPLEMENTAR
+  t_list* lista_instrucciones;
+  t_segmentos datos_segmentos;
 } t_pcb;
 
 

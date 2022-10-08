@@ -145,6 +145,7 @@ void *conexion_consola(void* socket){
                 }
 
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
+                enviar_PCB(socket_dispatch, pcb);
                 agregar_pcb_a_cola(pcb,mutex_new,new_queue);
                 log_info(logger,string_from_format("Se crea el proceso <%d> en NEW",pcb->pid));
                 sem_post(&new_to_ready);
@@ -160,7 +161,6 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = ultimo_pid;
-    pcb->pid = getpid();
     pcb->registros_pcb.registro_ax=0;
     pcb->registros_pcb.registro_bx=0;
     pcb->registros_pcb.registro_cx=0;
