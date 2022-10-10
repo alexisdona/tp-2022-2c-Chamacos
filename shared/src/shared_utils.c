@@ -52,7 +52,11 @@ char* traducir_registro_cpu(registro_cpu registro){
 }
 
 char* traducir_dispositivo(dispositivo disp){
-    if(disp == DISCO)           return "DISCO";
-    else if( disp == IMPRESORA) return "IMPRESORA";
-    else return "ERROR - DISPOSITIVO INVALIDO";
+    switch(disp){
+        case DISCO:     return "DISCO";
+        case IMPRESORA: return "IMPRESORA";
+        case PANTALLA:  return "PANTALLA";
+        case TECLADO:   return "TECLADO";
+        default: return "ERROR - DISPOSITIVO INVALIDO";
+    }
 }

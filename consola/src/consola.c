@@ -23,7 +23,9 @@ int main(int argc, char* argv[]) {
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* segmentos = convertir_segmentos(segmentos_config); 
+
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
+    log_info(logger,"Envie lista de instrucciones y segmentos");
     list_destroy(instrucciones);
     list_destroy(segmentos);
 

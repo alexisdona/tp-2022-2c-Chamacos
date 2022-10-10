@@ -8,6 +8,8 @@
 
 uint32_t ultimo_pid;
 uint32_t quantum;
+uint32_t* tiempos_bloqueos;
+op_code motivo_bloqueo;
 char* algoritmo_planificacion;
 
 t_config* kernel_config;
@@ -27,7 +29,13 @@ sem_t new_to_ready;
 sem_t ready_to_running;
 sem_t cpu_libre;
 sem_t finish_process;
-sem_t recibi_pcb_en_ejecucion;
+sem_t recibi_pcb_por_interrupcion;
+sem_t enviar_pcb_a_cpu;
+sem_t redirigir_proceso_bloqueado;
+sem_t bloquear_por_io;
+sem_t bloquear_por_pantalla;
+sem_t bloquear_por_teclado;
+sem_t bloquear_por_pf;
 
 //Mutex para proteger las colas
 pthread_mutex_t mutex_new;
@@ -38,6 +46,7 @@ pthread_mutex_t mutex_blocked_keyboard;
 pthread_mutex_t mutex_blocked_page_fault;
 pthread_mutex_t mutex_blocked_io;
 pthread_mutex_t mutex_exit;
+pthread_mutex_t mutex_pid;
 
 //Sockets de modulos
 int socket_dispatch;
@@ -99,5 +108,12 @@ void* finalizador_procesos(void*);
 
 void* manejador_estado_ready(void*);
 void* manejador_estado_running(void*);
+void* manejador_estado_blocked(void*);
+void* manejador_estado_blocked_pf(void*);
+void* manejador_estado_blocked_io(void* x);
+void* manejador_estado_blocked_screen(void* x);
+void* manejador_estado_blocked_keyboard(void* x);
+
+void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t* tiempo_bloqueo);
 
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H

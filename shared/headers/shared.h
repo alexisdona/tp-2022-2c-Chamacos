@@ -39,7 +39,7 @@
 #define MEMORIA         4
 
 
-#define CONNECTION_FILE "../connection.config"
+#define CONNECTION_FILE "../../connection.config"
 
 extern char* LOG_FILE;
 extern char* LOG_NAME;
@@ -64,7 +64,9 @@ typedef enum{
 
 typedef enum{
     DISCO,
-    IMPRESORA
+    IMPRESORA,
+    PANTALLA,
+    TECLADO
 } dispositivo;
 
 typedef struct{
@@ -79,7 +81,10 @@ typedef enum {
     PCB,
     INTERRUPCION,
     CONTINUA_PROCESO,
-    BLOQUEAR_PROCESO,
+    BLOQUEAR_PROCESO_IO,
+    BLOQUEAR_PROCESO_PANTALLA,
+    BLOQUEAR_PROCESO_TECLADO,
+    PAGE_FAULT,
     DESALOJAR_PROCESO,
     FINALIZAR_PROCESO
 } op_code;
@@ -187,11 +192,9 @@ void recibir_mensaje(int socket_cliente, t_log* logger);
 t_list* recibir_lista_instrucciones(int socket);
 t_list* recibir_lista_segmentos(int socket);
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
-void enviar_pcb(uint32_t socket, t_pcb* pcb);
-t_pcb* recibir_pcb(uint32_t socket);
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
-void enviar_PCB(int socket_destino, t_pcb* pcb);
+void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion);
 t_pcb* recibir_PCB(int socket_desde);
 
 

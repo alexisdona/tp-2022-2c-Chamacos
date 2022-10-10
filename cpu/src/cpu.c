@@ -185,7 +185,9 @@ op_code operacion_MOV_OUT(uint32_t direccion_logica,registro_cpu registro){
 
 op_code operacion_IO(dispositivo dispositivo,uint32_t unidades_trabajo){
 	log_info(logger,string_from_format("PID: <%d> - Ejecutando <IO> - <%s> - <%d>",pcb->pid,traducir_dispositivo(dispositivo),unidades_trabajo));
-	return BLOQUEAR_PROCESO;
+	if(dispositivo == PANTALLA) return BLOQUEAR_PROCESO_PANTALLA;
+	else if(dispositivo == TECLADO) return BLOQUEAR_PROCESO_TECLADO;
+	else return BLOQUEAR_PROCESO_IO;
 }
 
 op_code operacion_EXIT(){

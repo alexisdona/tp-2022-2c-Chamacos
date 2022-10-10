@@ -145,7 +145,7 @@ void crear_buffer(t_paquete* paquete){
     paquete->buffer->stream = NULL;
 }
 
-void agregar_entero(t_paquete * paquete, uint32_t entero){
+void agregar_entero(t_paquete* paquete, uint32_t entero){
     paquete->buffer->stream = realloc(paquete->buffer->stream, paquete->buffer->size + sizeof(entero));
     memcpy(paquete->buffer->stream + paquete->buffer->size, &entero, sizeof(entero));
     paquete->buffer->size += sizeof(entero);
@@ -283,7 +283,7 @@ void recibir_mensaje(int socket_cliente, t_log* logger){
 void agregar_lista_instrucciones(t_paquete *paquete, t_list *instrucciones){
     uint32_t cantidad_instrucciones = list_size(instrucciones);
     agregar_entero(paquete, cantidad_instrucciones);
-    for(int i=0; i < list_size(instrucciones); i++){
+    for(int i=0; i < cantidad_instrucciones; i++){
         t_instruccion *instruccion = list_get(instrucciones, i);
         agregar_instruccion(paquete, (void *) instruccion);
     }
@@ -292,8 +292,9 @@ void agregar_lista_instrucciones(t_paquete *paquete, t_list *instrucciones){
 void agregar_lista_segmentos(t_paquete* paquete, t_list* segmentos){
     uint32_t cantidad_segmentos = list_size(segmentos);
     agregar_entero(paquete, cantidad_segmentos);
-    for(int i=0; i < list_size(segmentos); i++){
+    for(int i=0; i < cantidad_segmentos; i++){
         agregar_segmento(paquete, list_get(segmentos, i));
+        printf("Segmento %d agregado\n",list_get(segmentos,i));
     }
 }
 
@@ -302,8 +303,11 @@ void enviar_lista_instrucciones_segmentos(uint32_t socket_destino, t_list* instr
 	paquete->codigo_operacion = LISTA_INSTRUCCIONES_SEGMENTOS;
 
     agregar_lista_instrucciones(paquete, instrucciones);
+    printf("Instrucciones agregadas al paquete\n");
     agregar_lista_segmentos(paquete, segmentos);
+    printf("Segmentos agregados al paquete\n");
     enviar_paquete(paquete, socket_destino);
+    printf("Paquete enviado\n");
     eliminar_paquete(paquete);
 }
 
@@ -337,9 +341,9 @@ t_list* recibir_lista_segmentos(int socket){
     return segmentos;
 }
 
-void enviar_PCB(int socket_destino, t_pcb* pcb) {
+void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
     t_paquete* paquete = crear_paquete();
-    paquete->codigo_operacion = PCB;
+    paquete->codigo_operacion = codigo_operacion;
 
     agregar_entero(paquete, pcb->pid);
     agregar_entero(paquete, pcb->program_counter);

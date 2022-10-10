@@ -13,6 +13,7 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
+    tiempos_bloqueos = (uint32_t*) config_get_array_value(kernel_config,"TIEMPOS_IO");
 
     inicializar_mutex();
     inicializar_semaforos_sincronizacion(grado_max_multiprogramacion);
@@ -88,21 +89,34 @@ void esperar_modulos(int socket_srv){
 
 void* conexion_dispatch(void* socket){
     socket_dispatch = (intptr_t) socket;
+    t_pcb* pcb;
     while(socket_dispatch != -1){
+
+        sem_wait(&enviar_pcb_a_cpu);
+        pcb = quitar_pcb_de_cola(mutex_running,running_queue);
+        enviar_PCB(socket_dispatch,pcb,PCB);
+
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
-		switch(codigo_operacion){
-			case PCB:
-			    ;
-			    t_pcb* un_pcb;
-                //recibir_pcb
-				break;
-		    case -1:
-		        break;
-			default:
+        pcb = recibir_PCB(socket_dispatch);
+        agregar_pcb_a_cola(pcb,mutex_running,running_queue);
+
+        switch(codigo_operacion){
+            case BLOQUEAR_PROCESO_IO:      
+            case BLOQUEAR_PROCESO_TECLADO:
+            case BLOQUEAR_PROCESO_PANTALLA:
+            case PAGE_FAULT:
+                motivo_bloqueo = codigo_operacion;
+                sem_post(&redirigir_proceso_bloqueado);
+                break;
+            case FINALIZAR_PROCESO:
+                break;
+            case INTERRUPCION:
+                sem_post(&recibi_pcb_por_interrupcion);
+                break;
+            default:
 			    perror("KERNEL -> Conexión Dispatch: Operacion desconocida");
-				break;
+        }
     }
-  }
 }
 
 void* conexion_interrupt(void* socket){
@@ -111,8 +125,7 @@ void* conexion_interrupt(void* socket){
     while(socket_interrupt != -1){
         usleep(micro_quantum);
         enviar_interrupcion(socket_interrupt);
-        sem_wait(&recibi_pcb_en_ejecucion);
-        sem_post(&cpu_libre);
+        sem_wait(&recibi_pcb_por_interrupcion);
     }
 }
 
@@ -126,10 +139,9 @@ void *conexion_memoria(void* socket){
 void *conexion_consola(void* socket){
     printf("\n");
     int socket_consola = (intptr_t) socket;
-    log_info(logger, string_from_format("socket_consola: %d", socket_consola));
     while(socket_consola != -1){
         op_code codigo_operacion = recibir_operacion(socket_consola);
-        log_info(logger, string_from_format("codigo_operacion: %d", codigo_operacion));
+        //log_info(logger, string_from_format("Codigo operacion CONSOLA: %d", codigo_operacion));
 
         switch(codigo_operacion){
             case LISTA_INSTRUCCIONES_SEGMENTOS:
@@ -144,8 +156,9 @@ void *conexion_consola(void* socket){
                     printf("segmento[%d]: %d\n",i, (uint32_t*) list_get(segmentos, i));
                 }
 
+                pthread_mutex_lock(&mutex_pid);
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
-                enviar_PCB(socket_dispatch, pcb);
+                pthread_mutex_unlock(&mutex_pid);
                 agregar_pcb_a_cola(pcb,mutex_new,new_queue);
                 log_info(logger,string_from_format("Se crea el proceso <%d> en NEW",pcb->pid));
                 sem_post(&new_to_ready);
@@ -214,6 +227,7 @@ void inicializar_mutex(){
     pthread_mutex_init(&mutex_dispatch,NULL);
     pthread_mutex_init(&mutex_interrupt,NULL);
     pthread_mutex_init(&mutex_memoria,NULL);
+    pthread_mutex_init(&mutex_pid,NULL);
 }
 
 void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
@@ -223,7 +237,13 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&ready_to_running,0,0);
     sem_init(&cpu_libre,0,1);
     sem_init(&finish_process,0,0);
-    sem_init(&recibi_pcb_en_ejecucion,0,0);
+    sem_init(&recibi_pcb_por_interrupcion,0,0);
+    sem_init(&enviar_pcb_a_cpu,0,0);
+    sem_init(&redirigir_proceso_bloqueado,0,0);
+    sem_init(&bloquear_por_io,0,0);
+    sem_init(&bloquear_por_pantalla,0,0);
+    sem_init(&bloquear_por_teclado,0,0);
+    sem_init(&bloquear_por_pf,0,0);
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
@@ -275,14 +295,18 @@ void* finalizador_procesos(void* x){
 void* planificador_corto_plazo(void* x){
     log_info(logger,"Iniciando Planificador Corto plazo..");
     pthread_t ready_thread;
+    pthread_t bloqueador_procesos;
     pthread_t blocked_page_fault_thread;
     pthread_t blocked_io_thread;
     pthread_t blocked_keyboard_thread;
     pthread_t blocked_screen_thread;
-    pthread_t running_thread;
 
+    pthread_create(&bloqueador_procesos, NULL, manejador_estado_blocked, NULL);
     pthread_create(&ready_thread, NULL, manejador_estado_ready, NULL);
-    pthread_create(&running_thread, NULL, manejador_estado_running, NULL);
+    pthread_create(&blocked_page_fault_thread, NULL, manejador_estado_blocked_pf, NULL);
+    pthread_create(&blocked_io_thread, NULL, manejador_estado_blocked_io, NULL);
+    pthread_create(&blocked_screen_thread, NULL, manejador_estado_blocked_screen, NULL);
+    pthread_create(&blocked_keyboard_thread, NULL, manejador_estado_blocked_keyboard, NULL);
 
     pthread_join(ready_thread,NULL);
 
@@ -291,15 +315,77 @@ void* planificador_corto_plazo(void* x){
 void* manejador_estado_ready(void* x){
     while(1){
         sem_wait(&ready_to_running);
+        sem_wait(&cpu_libre);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_ready,ready1_queue);
         agregar_pcb_a_cola(pcb,mutex_running,running_queue);
         log_info(logger,string_from_format("PID: <%d> - Estado Anterior <READY> - Estado Actual <RUNNING>",pcb->pid));
+        sem_post(&enviar_pcb_a_cpu);
     }
 }
 
-void* manejador_estado_running(void* x){
+void* manejador_estado_blocked(void* x){
     while(1){
-        sem_wait(&cpu_libre);
-        //Enviar pcb a cpu
+        sem_wait(&redirigir_proceso_bloqueado);
+        t_pcb* pcb = quitar_pcb_de_cola(mutex_running,running_queue);
+        sem_post(&cpu_libre);
+
+        switch (motivo_bloqueo){
+            case BLOQUEAR_PROCESO_IO:
+                agregar_pcb_a_cola(pcb,mutex_blocked_io,blocked_io_queue);
+                sem_post(&bloquear_por_io);
+                break;
+
+            case BLOQUEAR_PROCESO_PANTALLA:
+                agregar_pcb_a_cola(pcb,mutex_blocked_screen,blocked_screen_queue);
+                sem_post(&bloquear_por_pantalla);
+                break;
+
+            case BLOQUEAR_PROCESO_TECLADO:
+                agregar_pcb_a_cola(pcb,mutex_blocked_keyboard,blocked_keyboard_queue);
+                sem_post(&bloquear_por_teclado);
+                break;
+
+            case PAGE_FAULT:
+                agregar_pcb_a_cola(pcb,mutex_blocked_page_fault,blocked_page_fault_queue);
+                sem_post(&bloquear_por_pf);
+                break;
+        }
+        log_info(logger,string_from_format("PID: <%d> - Estado Anterior <RUNNING> - Estado Actual <BLOCKED>",pcb->pid));
     }
+}
+
+void* manejador_estado_blocked_pf(void* x){
+    sem_wait(&bloquear_por_pf);
+
+}
+
+void* manejador_estado_blocked_io(void* x){
+    uint32_t tiempo_bloqueado;    
+    dispositivo io;
+    t_pcb* pcb;
+
+    while(1){
+        sem_wait(&bloquear_por_io);
+        pcb = quitar_pcb_de_cola(mutex_blocked_io,blocked_io_queue);
+        obtener_dispositivo_tiempo_bloqueo(pcb,&io,&tiempo_bloqueado);
+        log_info(logger,string_from_format("PID: <%d> - Bloqueado por: <%s>",pcb->pid,traducir_dispositivo(io)));
+        usleep(tiempo_bloqueado);
+        agregar_pcb_a_cola(pcb,mutex_ready,ready1_queue);
+    }
+}
+
+void* manejador_estado_blocked_screen(void* x){
+        sem_wait(&bloquear_por_pantalla);
+
+}
+
+void* manejador_estado_blocked_keyboard(void* x){
+        sem_wait(&bloquear_por_teclado);
+
+}
+
+void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t* tiempo_bloqueo){
+    t_instruccion* instruccion_anterior = list_get(pcb->lista_instrucciones,pcb->program_counter-1);
+    *disp = instruccion_anterior->parametros[0];
+    *tiempo_bloqueo = tiempos_bloqueos[*disp] * instruccion_anterior->parametros[1] * 1000;
 }
