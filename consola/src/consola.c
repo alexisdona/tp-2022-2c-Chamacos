@@ -133,8 +133,11 @@ dispositivo obtener_dispositivo(char* dispositivo){
 t_list* convertir_segmentos(char** segmentos_config){
     t_list* lista_segmentos = list_create();
     uint32_t tam = string_array_size(segmentos_config);
-    for(uint32_t i=0; i < tam; i++){
-        list_add(lista_segmentos, (void*) atoi(segmentos_config[i]));
+    for(int i=0; i < tam; i++){
+        void* valor_segmento= malloc(sizeof(uint32_t));
+        int valor = atoi(segmentos_config[i]);
+        memcpy(valor_segmento,&valor,sizeof(uint32_t));
+        list_add(lista_segmentos, valor_segmento);
     }
     return lista_segmentos;
 
