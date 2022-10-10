@@ -140,8 +140,8 @@ void *conexion_consola(void* socket){
                 }
 
                 t_list* segmentos = recibir_lista_segmentos(socket_consola);
-                for(int i=0; i<list_size(segmentos); i++){
-                    printf("segmento[%d]: %d\n",i, (uint32_t) list_get(segmentos, i));
+                for(int i=0; i< list_size(segmentos); i++){
+                    printf("segmento[%d]: %d\n",i, (uint32_t*) list_get(segmentos, i));
                 }
 
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
