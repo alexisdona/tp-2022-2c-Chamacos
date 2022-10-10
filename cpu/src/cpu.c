@@ -68,7 +68,7 @@ void* conexion_dispatch(void* socket){
     while(socket_dispatch != -1){
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
 		if(codigo_operacion == PCB){
-			t_pcb* pcb1 = recibir_PCB(socket_dispatch);
+			pcb = recibir_PCB(socket_dispatch);
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
 			//enviarPCB
