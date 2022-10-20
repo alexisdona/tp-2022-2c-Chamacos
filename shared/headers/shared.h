@@ -196,6 +196,7 @@ void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
 void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion);
 t_pcb* recibir_PCB(int socket_desde);
+void enviar_interrupcion(int socket);
 
 
 #endif //TP_2022_1C_ECLIPSO_SHARED_H

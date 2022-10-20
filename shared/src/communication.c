@@ -82,8 +82,11 @@ int esperar_cliente(int socket_server, t_log* logger){
         close(socket_server);
         exit(-1);
     }
-
+/*
+    printf(BLU"");
     log_info(logger, "Se conecto un cliente!");
+    printf(WHT"");
+*/
     return socket_cliente;
 }
 
@@ -92,7 +95,9 @@ int enviar_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
     send(socket,&id_modulo,sizeof(uint32_t),0);
     recv(socket,&id_modulo_conectado,sizeof(uint32_t),MSG_WAITALL);
     if(modulo_valido(id_modulo_conectado)){
+        printf(BLU"");
         log_info(logger,string_from_format("Conexion establecida: [%s] < ---- > [%s] ",identificadores_modulo(id_modulo),identificadores_modulo(id_modulo_conectado)));
+        printf(WHT"");
     }else{
         log_error(logger,"Error al establecer conexion entre los modulos");
         exit(EXIT_FAILURE);
@@ -107,7 +112,9 @@ int recibir_handshake_inicial(int socket, uint32_t id_modulo, t_log* logger){
     recv(socket,&id_modulo_conectado,sizeof(uint32_t),MSG_WAITALL);
     if(modulo_valido(id_modulo_conectado)){
         send(socket,&id_modulo,sizeof(uint32_t),0);
+        printf(BLU"");
         log_info(logger,string_from_format("Conexion establecida: [%s] < ---- > [%s] ",identificadores_modulo(id_modulo),identificadores_modulo(id_modulo_conectado)));
+        printf(WHT"");
     }else{
         id_modulo = -1;
         send(socket,&id_modulo,sizeof(uint32_t),0);
@@ -129,7 +136,7 @@ char* identificadores_modulo(uint32_t id_modulo){
         case CPU_DISPATCH:  return "CPU DISPATCH";
         case CPU_INTERRUPT: return "CPU INTERRUPT";
         case MEMORIA:       return "MEMORIA";
-        default:            return "ERROR MODULO INCORRECTO";
+        default:            return "ERROR - MODULO INCORRECTO";
     }
 }
 
@@ -215,7 +222,6 @@ int enviar_paquete(t_paquete* paquete, int socket_destino){
     size_t tamanio_payload = sizeof(size_t);
 
     size_t tamanio_paquete = tamanio_codigo_operacion + tamanio_stream + tamanio_payload;
-    printf("Paquete [%d] - COP [%d] - Stream [%d] - Payload [%d]\n", tamanio_paquete, tamanio_codigo_operacion, tamanio_stream, tamanio_payload);
     void* a_enviar = serializar_paquete(paquete, tamanio_paquete);
 
     if(send(socket_destino, a_enviar, tamanio_paquete, 0) == -1){
@@ -276,7 +282,9 @@ void enviar_mensaje(char* mensaje, int socket){
 
 void recibir_mensaje(int socket_cliente, t_log* logger){
     char* buffer = recibir_buffer(socket_cliente);
+    printf(BLU"");
     log_info(logger, "Mensaje: %s", buffer);
+    printf(WHT"");
     free(buffer);
 }
 
@@ -294,7 +302,7 @@ void agregar_lista_segmentos(t_paquete* paquete, t_list* segmentos){
     agregar_entero(paquete, cantidad_segmentos);
     for(int i=0; i < cantidad_segmentos; i++){
         agregar_segmento(paquete, list_get(segmentos, i));
-        printf("Segmento %d agregado\n",list_get(segmentos,i));
+        //printf("Segmento %d agregado\n",(uint32_t) list_get(segmentos,i));
     }
 }
 
@@ -303,11 +311,11 @@ void enviar_lista_instrucciones_segmentos(uint32_t socket_destino, t_list* instr
 	paquete->codigo_operacion = LISTA_INSTRUCCIONES_SEGMENTOS;
 
     agregar_lista_instrucciones(paquete, instrucciones);
-    printf("Instrucciones agregadas al paquete\n");
+    //printf("Instrucciones agregadas al paquete\n");
     agregar_lista_segmentos(paquete, segmentos);
-    printf("Segmentos agregados al paquete\n");
+    //printf("Segmentos agregados al paquete\n");
     enviar_paquete(paquete, socket_destino);
-    printf("Paquete enviado\n");
+    //printf("Paquete enviado\n");
     eliminar_paquete(paquete);
 }
 
