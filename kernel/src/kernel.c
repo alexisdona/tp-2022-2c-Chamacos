@@ -3,6 +3,7 @@
 int main(int argc, char* argv[]) {
 
     ultimo_pid=0;
+    INTERRUPCIONES_HABILITADAS = 1;
 
     validar_argumentos_main(argc);
 
@@ -68,20 +69,20 @@ void esperar_modulos(int socket_srv){
                 pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_cliente);
                 pthread_detach(thread_escucha_dispatch);
                 break;
+
             case CPU_INTERRUPT:
-                if(algoritmo_planificacion_tiene_desalojo()){
-                    pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_cliente);
-                    pthread_detach(thread_escucha_interrupt);
-                }else{
-                    close(conexion_interrupt);
-                }
+                pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_cliente);
+                pthread_detach(thread_escucha_interrupt);
                 break;
+
             case MEMORIA:
                 pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_cliente);
                 pthread_detach(thread_escucha_memoria);
                 break;
+
             default:
-                log_error(logger,string_from_format("Modulo desconocido actualmente %d",modulo));
+                log_warning(logger,"Modulo desconocido");
+                printf(YEL"\t > Identificador Modulo: %d\n",modulo);
                 i--;
         }
     }
@@ -90,15 +91,29 @@ void esperar_modulos(int socket_srv){
 void* conexion_dispatch(void* socket){
     socket_dispatch = (intptr_t) socket;
     t_pcb* pcb;
+    uint32_t interrupciones_iniciadas = INTERRUPCIONES_HABILITADAS;
+
     while(socket_dispatch != -1){
 
         sem_wait(&enviar_pcb_a_cpu);
         pcb = quitar_pcb_de_cola(mutex_running,running_queue);
+        
         enviar_PCB(socket_dispatch,pcb,PCB);
+        printf(BLU"");
+        log_info(logger,string_from_format("Conexion Dispatch: PCB Enviado: PID <%d>",pcb->pid));
+        printf(WHT"");
+        sem_post(&continuar_conteo_quantum);
+
+        if(algoritmo_planificacion_tiene_desalojo() && interrupciones_iniciadas == INTERRUPCIONES_HABILITADAS){
+            interrupciones_iniciadas--;
+        }
 
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
         pcb = recibir_PCB(socket_dispatch);
-        agregar_pcb_a_cola(pcb,mutex_running,running_queue);
+        printf(BLU"");
+        log_info(logger,string_from_format("Conexion Dispatch: PCB Recibido: PID <%d>",pcb->pid));
+        printf(WHT"");
+        sem_post(&cpu_libre);
 
         switch(codigo_operacion){
             case BLOQUEAR_PROCESO_IO:      
@@ -108,13 +123,21 @@ void* conexion_dispatch(void* socket){
                 motivo_bloqueo = codigo_operacion;
                 sem_post(&redirigir_proceso_bloqueado);
                 break;
+
             case FINALIZAR_PROCESO:
+                agregar_pcb_a_cola(pcb,mutex_exit,exit_queue);
+                logear_cambio_estado(pcb,RUNNING,EXIT_S);
+                sem_post(&finish_process);
                 break;
+
             case INTERRUPCION:
-                sem_post(&recibi_pcb_por_interrupcion);
+                agregar_a_ready(pcb,INTERRUPCION,RUNNING);
                 break;
+
             default:
-			    perror("KERNEL -> Conexión Dispatch: Operacion desconocida");
+                log_warning(logger,"Conexion Dispatch -> Recibio una operacion incorrecta");
+                printf(YEL"\t > Codigo Operacion: %d\n",codigo_operacion);
+                printf(WHT"");
         }
     }
 }
@@ -122,10 +145,14 @@ void* conexion_dispatch(void* socket){
 void* conexion_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
     uint32_t micro_quantum = quantum * 1000;
+    log_info(logger,string_from_format("Quantum: %ds",quantum/1000));
     while(socket_interrupt != -1){
+        sem_wait(&continuar_conteo_quantum);
         usleep(micro_quantum);
+        printf(BLU"");
+        log_info(logger,"Conexion Interrupt: Enviando Interrupcion a CPU");
+        printf(WHT"");
         enviar_interrupcion(socket_interrupt);
-        sem_wait(&recibi_pcb_por_interrupcion);
     }
 }
 
@@ -141,7 +168,6 @@ void *conexion_consola(void* socket){
     int socket_consola = (intptr_t) socket;
     while(socket_consola != -1){
         op_code codigo_operacion = recibir_operacion(socket_consola);
-        //log_info(logger, string_from_format("Codigo operacion CONSOLA: %d", codigo_operacion));
 
         switch(codigo_operacion){
             case LISTA_INSTRUCCIONES_SEGMENTOS:
@@ -152,20 +178,20 @@ void *conexion_consola(void* socket){
                 }
 
                 t_list* segmentos = recibir_lista_segmentos(socket_consola);
-                for(int i=0; i< list_size(segmentos); i++){
-                    printf("segmento[%d]: %d\n",i, (uint32_t*) list_get(segmentos, i));
-                }
 
                 pthread_mutex_lock(&mutex_pid);
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
                 pthread_mutex_unlock(&mutex_pid);
                 agregar_pcb_a_cola(pcb,mutex_new,new_queue);
+                printf(CYN"");
                 log_info(logger,string_from_format("Se crea el proceso <%d> en NEW",pcb->pid));
+                printf(WHT"");
                 sem_post(&new_to_ready);
                 break;
             default:
-                break;
-
+                log_warning(logger,"Conexion Consola -> Recibio una operacion incorrecta");
+                printf(YEL"\t > Codigo Operacion: %d\n",codigo_operacion);
+                printf(WHT"");
         }
     }
 }
@@ -217,7 +243,8 @@ void iniciar_planificacion(){
 
 void inicializar_mutex(){
     pthread_mutex_init(&mutex_new,NULL);
-    pthread_mutex_init(&mutex_ready,NULL);
+    pthread_mutex_init(&mutex_ready1,NULL);
+    pthread_mutex_init(&mutex_ready2,NULL);
     pthread_mutex_init(&mutex_running,NULL);
     pthread_mutex_init(&mutex_blocked_screen,NULL);
     pthread_mutex_init(&mutex_blocked_keyboard,NULL);
@@ -234,10 +261,10 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&grado_multiprogramacion,0,multiprogramacion);
     sem_init(&new_process,0,0);
     sem_init(&new_to_ready,0,0);
-    sem_init(&ready_to_running,0,0);
+    sem_init(&pcbs_en_ready,0,0);
     sem_init(&cpu_libre,0,1);
     sem_init(&finish_process,0,0);
-    sem_init(&recibi_pcb_por_interrupcion,0,0);
+    sem_init(&continuar_conteo_quantum,0,0);
     sem_init(&enviar_pcb_a_cpu,0,0);
     sem_init(&redirigir_proceso_bloqueado,0,0);
     sem_init(&bloquear_por_io,0,0);
@@ -276,9 +303,7 @@ void pcb_a_dispatcher(){
         sem_wait(&new_to_ready);
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_new,new_queue);
-        agregar_pcb_a_cola(pcb,mutex_ready,ready1_queue);
-        log_info(logger,string_from_format("PID: <%d> - Estado Anterior <NEW>   - Estado Actual <READY>",pcb->pid));
-        sem_post(&ready_to_running);
+        agregar_a_ready(pcb,PCB,NEW);
     }
 }
 
@@ -313,12 +338,13 @@ void* planificador_corto_plazo(void* x){
 }
 
 void* manejador_estado_ready(void* x){
+    estado_pcb ready_anterior;
     while(1){
-        sem_wait(&ready_to_running);
+        sem_wait(&pcbs_en_ready);
         sem_wait(&cpu_libre);
-        t_pcb* pcb = quitar_pcb_de_cola(mutex_ready,ready1_queue);
+        t_pcb* pcb = quitar_de_ready(&ready_anterior);
         agregar_pcb_a_cola(pcb,mutex_running,running_queue);
-        log_info(logger,string_from_format("PID: <%d> - Estado Anterior <READY> - Estado Actual <RUNNING>",pcb->pid));
+        logear_cambio_estado(pcb,ready_anterior,RUNNING);
         sem_post(&enviar_pcb_a_cpu);
     }
 }
@@ -349,6 +375,11 @@ void* manejador_estado_blocked(void* x){
                 agregar_pcb_a_cola(pcb,mutex_blocked_page_fault,blocked_page_fault_queue);
                 sem_post(&bloquear_por_pf);
                 break;
+
+            default:
+                log_warning(logger,"Manejador de estdos blocked -> Recibio una operacion incorrecta");
+                printf(YEL"\t > Codigo Operacion: %d\n",motivo_bloqueo);
+                printf(WHT"");
         }
         log_info(logger,string_from_format("PID: <%d> - Estado Anterior <RUNNING> - Estado Actual <BLOCKED>",pcb->pid));
     }
@@ -368,9 +399,11 @@ void* manejador_estado_blocked_io(void* x){
         sem_wait(&bloquear_por_io);
         pcb = quitar_pcb_de_cola(mutex_blocked_io,blocked_io_queue);
         obtener_dispositivo_tiempo_bloqueo(pcb,&io,&tiempo_bloqueado);
+        printf(CYN"");
         log_info(logger,string_from_format("PID: <%d> - Bloqueado por: <%s>",pcb->pid,traducir_dispositivo(io)));
+        printf(WHT"");
         usleep(tiempo_bloqueado);
-        agregar_pcb_a_cola(pcb,mutex_ready,ready1_queue);
+        agregar_a_ready(pcb,BLOQUEAR_PROCESO_IO,BLOQUEADO_IO);
     }
 }
 
@@ -388,4 +421,54 @@ void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t*
     t_instruccion* instruccion_anterior = list_get(pcb->lista_instrucciones,pcb->program_counter-1);
     *disp = instruccion_anterior->parametros[0];
     *tiempo_bloqueo = tiempos_bloqueos[*disp] * instruccion_anterior->parametros[1] * 1000;
+}
+
+void agregar_a_ready(t_pcb* pcb, op_code motivo, estado_pcb anterior){
+    if(algoritmo_es_feedback() && motivo == INTERRUPCION){
+        logear_cambio_estado(pcb,anterior,READY2);
+        agregar_pcb_a_cola(pcb,mutex_ready2,ready2_queue);
+    }else{
+        logear_cambio_estado(pcb,anterior,READY1);
+        agregar_pcb_a_cola(pcb,mutex_ready1,ready1_queue);
+    }
+    sem_post(&pcbs_en_ready);
+}
+
+t_pcb* quitar_de_ready(estado_pcb* ready){
+    if(!queue_is_empty(ready1_queue)){
+        *ready = READY1;
+        return quitar_pcb_de_cola(mutex_ready1,ready1_queue);
+    }else{
+        if(algoritmo_es_feedback() && !queue_size(ready2_queue)){
+            *ready = READY2;
+            return quitar_pcb_de_cola(mutex_ready2,ready2_queue);
+        }
+    }
+    log_error(logger,"Se intento quitar un pcb de alguna cola de READY pero ambas estan vacias");
+}
+
+int algoritmo_es_feedback(){
+    return string_equals_ignore_case(algoritmo_planificacion,"FEEDBACK");
+}
+
+void logear_cambio_estado(t_pcb* pcb,estado_pcb anterior,estado_pcb actual){
+    const char* log = string_from_format("PID: <%d> - Estado Anterior <%s> - Estado Actual <%s>",pcb->pid,traducir_estado_pcb(anterior),traducir_estado_pcb(actual));
+    printf(CYN"");
+    log_info(logger,log);
+    printf(WHT"");
+}
+
+char* traducir_estado_pcb(estado_pcb estado){
+    switch(estado){
+        case NEW:                   return "NEW";
+        case READY1:                return "READY1";
+        case READY2:                return "READY2";
+        case RUNNING:               return "RUNNING";
+        case BLOQUEADO_IO:          return "BLOQUEADO_IO";
+        case BLOQUEADO_PANTALLA:    return "BLOQUEADO_PANTALLA";
+        case BLOQUEADO_TECLADO:     return "BLOQUEADO_TECLADO";
+        case BLOQUEADO_PAGE_FAULT:  return "BLOQUEADO_PAGE_FAULT";
+        case EXIT_S:                return "EXIT";
+        default:                    return "ERROR - NOMBRE ESTADO INADECUADO";
+    }
 }
