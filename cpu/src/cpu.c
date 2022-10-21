@@ -86,6 +86,7 @@ void* conexion_dispatch(void* socket){
 			log_warning(logger,"Conexion Dispatch -> Recibio una operacion incorrecta");
 			printf(YEL"\t > Codigo Operacion: %d\n",codigo_operacion);
 			printf(WHT"");
+			exit(EXIT_FAILURE);
 		}
 	}
 }
@@ -106,6 +107,7 @@ void* conexion_interrupt(void* socket){
 			log_warning(logger,"Conexion Interrupt -> Recibio una operacion incorrecta");
 			printf(YEL"\t > Codigo Operacion: %d\n",codigo_operacion);
 			printf(WHT"");
+			exit(EXIT_FAILURE);
 		}
 	}
 }
@@ -127,10 +129,8 @@ void comenzar_ciclo_instruccion(){
 		}
 		estado_proceso = fase_execute(instruccion, operador);
 		if(estado_proceso == CONTINUA_PROCESO){
-			printf("Check Interrupcion\n");
 			chequear_interrupcion();
 		}else{
-			printf("Check Desalojo Proceso\n");
 			chequear_desalojo_proceso();
 		}
 	}
@@ -227,12 +227,12 @@ op_code operacion_EXIT(){
 }
 
 void chequear_interrupcion(){
-	printf(" -> Chequear interrupcion\n");
 	pthread_mutex_lock(&mutex_flag_interrupcion);
 	op_code interrupt = hubo_interrupcion;
 	pthread_mutex_unlock(&mutex_flag_interrupcion);
 
 	if(interrupt == INTERRUPCION){
+		printf("\n");
 		log_info(logger,"Atendiendo interrupcion...");
 		estado_proceso = INTERRUPCION;
 		sem_post(&desalojar_pcb);

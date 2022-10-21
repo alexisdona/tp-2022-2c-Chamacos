@@ -6,6 +6,7 @@
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
 
+uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
 uint32_t ultimo_pid;
 uint32_t quantum;
