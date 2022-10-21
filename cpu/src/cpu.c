@@ -36,6 +36,10 @@ int main(int argc, char* argv[]){
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
 
 	retardo_operacion_cpu = config_get_int_value(cpu_config,"RETARDO_INSTRUCCION");
+	log_info(logger,string_from_format("Retardo por operacion de CPU: %ds",retardo_operacion_cpu/1000));
+	printf("\n");
+	retardo_operacion_cpu = retardo_operacion_cpu*1000;
+
 	sem_init(&desalojar_pcb,0,0);
 	sem_init(&continuar_ciclo_instruccion,0,0);
 
@@ -68,12 +72,18 @@ void* conexion_dispatch(void* socket){
     while(socket_dispatch != -1){
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
 		if(codigo_operacion == PCB){
-			t_pcb* pcb1 = recibir_PCB(socket_dispatch);
+			pcb = recibir_PCB(socket_dispatch);
+			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
-			//enviarPCB
+			enviar_PCB(socket_dispatch,pcb,estado_proceso);
+			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
+			pcb = NULL;
 		}else{
-			log_error(logger,"Conexion Dispatch: codigo de operacion desconocido");
+			log_warning(logger,"Conexion Dispatch -> Recibio una operacion incorrecta");
+			printf(YEL"\t > Codigo Operacion: %d\n",codigo_operacion);
+			
+			exit(EXIT_FAILURE);
 		}
 	}
 }
@@ -82,13 +92,16 @@ void* conexion_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
     while(socket_interrupt != -1){
         op_code codigo_operacion = recibir_operacion(socket_interrupt);
+		
 		if(codigo_operacion == INTERRUPCION) {
+			log_info(logger,BLU"Conexion Interrupt: Interrupcion recibida"WHT);
 			pthread_mutex_lock(&mutex_flag_interrupcion);
 			hubo_interrupcion = INTERRUPCION;
 			pthread_mutex_unlock(&mutex_flag_interrupcion);
-			log_info(logger,"Interrupcion recibida...");
 		}else{
-			log_error(logger,"Conexion Interrupt: codigo de operacion desconocido");
+			log_warning(logger,"Conexion Interrupt -> Recibio una operacion incorrecta");
+			printf(YEL"\t > Codigo Operacion: %d\n"WHT,codigo_operacion);
+			exit(EXIT_FAILURE);
 		}
 	}
 }
@@ -112,7 +125,7 @@ void comenzar_ciclo_instruccion(){
 		if(estado_proceso == CONTINUA_PROCESO){
 			chequear_interrupcion();
 		}else{
-			chequear_desalojo_proceso();
+			desalojo_proceso();
 		}
 	}
 
@@ -160,60 +173,56 @@ op_code fase_execute(t_instruccion* instruccion, uint32_t operador){
 }
 
 op_code operacion_SET(registro_cpu* registro,uint32_t valor){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <SET> - <%s> - <%d>",pcb->pid,traducir_registro_cpu(*registro),valor));
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <SET> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),valor));
 	(*registro) = valor;
 	return CONTINUA_PROCESO;
 }
 
 op_code operacion_ADD(registro_cpu* registro1,registro_cpu registro2){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <ADD> - <%s> - <%s>",pcb->pid,traducir_registro_cpu(*registro1),traducir_registro_cpu(registro2)));
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <ADD> - <%s> - <%s>"WHT,pcb->pid,traducir_registro_cpu(*registro1),traducir_registro_cpu(registro2)));
 	(*registro1) = (*registro1 + registro2);
 	return CONTINUA_PROCESO;
 }
 
 op_code operacion_MOV_IN(registro_cpu* registro,uint32_t direccion_logica){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>",pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
 	(*registro) = direccion_logica;
 	return CONTINUA_PROCESO;
 }
 
 op_code operacion_MOV_OUT(uint32_t direccion_logica,registro_cpu registro){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <MOV_OUT> - <%d> - <%s>",pcb->pid,direccion_logica,traducir_registro_cpu(registro)));
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_OUT> - <%d> - <%s>"WHT,pcb->pid,direccion_logica,traducir_registro_cpu(registro)));
 	direccion_logica = registro;
 	return CONTINUA_PROCESO;
 }
 
 op_code operacion_IO(dispositivo dispositivo,uint32_t unidades_trabajo){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <IO> - <%s> - <%d>",pcb->pid,traducir_dispositivo(dispositivo),unidades_trabajo));
-	return BLOQUEAR_PROCESO;
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <IO> - <%s> - <%d>"WHT,pcb->pid,traducir_dispositivo(dispositivo),unidades_trabajo));
+	if(dispositivo == PANTALLA) return BLOQUEAR_PROCESO_PANTALLA;
+	else if(dispositivo == TECLADO) return BLOQUEAR_PROCESO_TECLADO;
+	else return BLOQUEAR_PROCESO_IO;
 }
 
 op_code operacion_EXIT(){
-	log_info(logger,string_from_format("PID: <%d> - Ejecutando <EXIT>",pcb->pid));
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <EXIT>"WHT,pcb->pid));
 	return FINALIZAR_PROCESO;
 }
 
 void chequear_interrupcion(){
+	printf("\n");
+	log_info(logger,"Check de interrupciones...");
 
-	pthread_mutex_lock(&mutex_flag_interrupcion);
-	op_code interrupt = hubo_interrupcion;
-	pthread_mutex_unlock(&mutex_flag_interrupcion);
-
-	if(interrupt == INTERRUPCION){
-		log_info(logger,"Atendiendo interrupcion...");
-		sem_post(&desalojar_pcb);
+	if(hubo_interrupcion == INTERRUPCION){
 		estado_proceso = INTERRUPCION;
-		sem_wait(&continuar_ciclo_instruccion);
-		pthread_mutex_unlock(&mutex_flag_interrupcion);
-		hubo_interrupcion = CONTINUA_PROCESO;
-		pthread_mutex_lock(&mutex_flag_interrupcion);
+		desalojo_proceso();
 	}
 
 }
 
-void chequear_desalojo_proceso(){
+void desalojo_proceso(){
 	sem_post(&desalojar_pcb);
 	sem_wait(&continuar_ciclo_instruccion);
 	estado_proceso = CONTINUA_PROCESO;
+	hubo_interrupcion = CONTINUA_PROCESO;
 }
 
