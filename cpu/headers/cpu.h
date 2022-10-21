@@ -43,6 +43,6 @@ op_code operacion_MOV_OUT(uint32_t direccion,registro_cpu);
 op_code operacion_IO(dispositivo,uint32_t unidades_trabajo);
 op_code operacion_EXIT();
 void chequear_interrupcion();
-void chequear_desalojo_proceso();
+void desalojo_proceso();
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H
