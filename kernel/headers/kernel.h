@@ -18,9 +18,12 @@ t_config* kernel_config;
 t_config* communication_config;
 t_log* logger;
 
+pthread_mutex_t mutex_logger;
+
 pthread_t thread_escucha_memoria;
 pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
+pthread_t thread_clock;
 
 int socket_cpu_dispatch;
 
@@ -50,16 +53,6 @@ pthread_mutex_t mutex_blocked_page_fault;
 pthread_mutex_t mutex_blocked_io;
 pthread_mutex_t mutex_exit;
 pthread_mutex_t mutex_pid;
-
-//Sockets de modulos
-int socket_dispatch;
-int socket_interrupt;
-int socket_memoria;
-
-//Mutex para proteccion de sockets
-pthread_mutex_t mutex_dispatch;
-pthread_mutex_t mutex_interrupt;
-pthread_mutex_t mutex_memoria;
 
 t_queue* new_queue;
 t_queue* exit_queue;
@@ -123,11 +116,11 @@ void* finalizador_procesos(void*);
 
 void* manejador_estado_ready(void*);
 void* manejador_estado_running(void*);
-void* manejador_estado_blocked(void*);
 void* manejador_estado_blocked_pf(void*);
 void* manejador_estado_blocked_io(void* x);
 void* manejador_estado_blocked_screen(void* x);
 void* manejador_estado_blocked_keyboard(void* x);
+void* clock_interrupt(void* socket);
 
 void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t* tiempo_bloqueo);
 void agregar_a_ready(t_pcb* pcb, op_code motivo,estado_pcb anterior);
