@@ -77,6 +77,9 @@ typedef struct{
 
 typedef enum {
     MENSAJE,
+	IMPRIMIR_VALOR,
+	ESPERAR_INPUT_VALOR,
+	INPUT_VALOR,
     LISTA_INSTRUCCIONES_SEGMENTOS,
     PCB,
     INTERRUPCION,
@@ -188,7 +191,7 @@ op_code recibir_operacion(int socket_cliente);
 void* recibir_buffer(int socket_cliente);
 
 void enviar_mensaje(char* mensaje, int socket);
-void recibir_mensaje(int socket_cliente, t_log* logger);
+void recibir_mensaje(int socket_cliente, t_log *logger);
 t_list* recibir_lista_instrucciones(int socket);
 t_list* recibir_lista_segmentos(int socket);
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);

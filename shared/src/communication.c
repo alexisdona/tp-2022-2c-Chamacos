@@ -426,3 +426,40 @@ void enviar_interrupcion(int socket){
     op_code codigo = INTERRUPCION;
     send(socket,&codigo,sizeof(op_code),0);
 }
+
+void enviar_imprimir_valor(uint32_t numero, int socket){
+	op_code codigo = IMPRIMIR_VALOR;
+	t_paquete* paquete = crear_paquete();
+	paquete->codigo_operacion = codigo;
+	agregar_entero(paquete, numero);
+	enviar_paquete(paquete, socket);
+	eliminar_paquete(paquete);
+}
+
+uint32_t deserializar_entero(void* stream){
+	uint32_t numero;
+	memcpy(&numero, stream, sizeof(uint32_t));
+	return numero;
+}
+
+uint32_t recibir_valor(int socket){
+	uint32_t* numero = recibir_buffer(socket);
+	return *numero;
+}
+
+void* enviar_esperar_input_valor(int socket){
+	op_code codigo = ESPERAR_INPUT_VALOR;
+	t_paquete* paquete = crear_paquete();
+	paquete->codigo_operacion = codigo;
+	enviar_paquete(paquete, socket);
+	eliminar_paquete(paquete);
+}
+
+void* enviar_input_valor(uint32_t valor, int socket){
+	op_code codigo = INPUT_VALOR;
+	t_paquete* paquete = crear_paquete();
+	paquete->codigo_operacion = codigo;
+	agregar_entero(paquete, valor);
+	enviar_paquete(paquete, socket);
+	eliminar_paquete(paquete);
+}

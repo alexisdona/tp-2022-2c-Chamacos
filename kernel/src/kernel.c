@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     iniciar_planificacion();
 
     int socket_srv_kernel = levantar_servidor();
-    esperar_modulos(socket_srv_kernel);
+    // esperar_modulos(socket_srv_kernel);
     esperar_consolas(socket_srv_kernel);
 
   }
@@ -247,6 +247,15 @@ void *conexion_consola(void* socket){
                 pthread_mutex_unlock(&mutex_logger);
                 sem_post(&new_to_ready);
                 break;
+			case INPUT_VALOR:
+				pthread_mutex_lock(&mutex_logger);
+				log_info(logger,"Esperando valor de consola...");
+				pthread_mutex_unlock(&mutex_logger);
+				uint32_t valor = recibir_valor(socket_consola);
+				pthread_mutex_lock(&mutex_logger);
+				log_info(logger,string_from_format("Valor recibido de consola: %d",valor));
+				pthread_mutex_unlock(&mutex_logger);
+				break;
             default:
                 pthread_mutex_lock(&mutex_logger);
                 log_warning(logger,"Conexion Consola -> Recibio una operacion incorrecta");

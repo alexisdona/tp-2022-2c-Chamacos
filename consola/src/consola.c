@@ -24,6 +24,8 @@ int main(int argc, char* argv[]) {
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* segmentos = convertir_segmentos(segmentos_config); 
 
+	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_DE_RESPUESTA");
+
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
     log_info(logger,"Envie lista de instrucciones y segmentos");
     list_destroy(instrucciones);
@@ -37,7 +39,20 @@ int main(int argc, char* argv[]) {
             case MENSAJE:
                 recibir_mensaje(socket_kernel, logger);
                 break;
-            default:
+            case IMPRIMIR_VALOR:
+				log_info(logger, "Kernel envió valor %zu para imprimir");
+				uint32_t valor = recibir_valor(socket_kernel);
+				printf("Valor recibido: %zu", valor);
+				break;
+			case ESPERAR_INPUT_VALOR:
+				log_info(logger, "Kernel solicitó un valor");
+				printf("Ingrese un valor: ");
+				uint32_t input;
+				scanf("%zu", &input);
+				sleep(tiempo_respuesta);
+				enviar_input_valor(input, socket_kernel);
+				break;
+			default:
                 log_trace(logger, "Operación desconocida en consola");
                 terminar_programa(socket_kernel, logger, communication_config);
                 break;
