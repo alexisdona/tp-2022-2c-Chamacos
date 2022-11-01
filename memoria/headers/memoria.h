@@ -6,7 +6,7 @@
 #define LOG_FILE "memoria.log"
 #define LOG_NAME "memoria_log"
 
-t_config* consola_config;
+t_config* memoria_config;
 t_config* communication_config;
 t_log* logger;
 

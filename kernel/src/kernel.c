@@ -241,9 +241,9 @@ void *conexion_consola(void* socket){
                 pthread_mutex_lock(&mutex_pid);
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
                 pthread_mutex_unlock(&mutex_pid);
-                agregar_pcb_a_cola(pcb,mutex_new,new_queue);
+                agregar_pcb_a_cola(pcb, mutex_new, new_queue);
                 pthread_mutex_lock(&mutex_logger);
-                log_info(logger,string_from_format(CYN"Se crea el proceso <%d> en NEW"WHT,pcb->pid));
+                log_info(logger,string_from_format(CYN"Se crea el proceso <%d> en NEW"WHT, pcb->pid));
                 pthread_mutex_unlock(&mutex_logger);
                 sem_post(&new_to_ready);
                 break;
@@ -257,7 +257,7 @@ void *conexion_consola(void* socket){
     }
 }
 
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = ultimo_pid;
@@ -265,8 +265,7 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
     pcb->registros_pcb.registro_bx=0;
     pcb->registros_pcb.registro_cx=0;
     pcb->registros_pcb.registro_dx=0;
-    pcb->datos_segmentos.indice_tabla_paginas_segmentos = 0;
-    pcb->datos_segmentos.segmentos = segmentos;
+    pcb->tabla_segmentos = tabla_segmentos;
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
     ultimo_pid++;
@@ -366,6 +365,8 @@ void pcb_a_dispatcher(){
         sem_wait(&new_to_ready);
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_new,new_queue);
+        //Antes de pasarlo a ready le pido a memoria que me cree las estructuras administrativas del pcb en memoria
+        //crear_estructuras_memoria(pcb); //TODO revisar con carri como se arma la conexión a memoria
         agregar_a_ready(pcb,PCB,NEW);
     }
 }
@@ -502,3 +503,23 @@ char* traducir_estado_pcb(estado_pcb estado){
         default:                    return "ERROR - NOMBRE ESTADO INADECUADO";
     }
 }
+/*
+void crear_estructuras_memoria(t_pcb* pcb) {
+    printf(GRN"\n");
+    log_info(logger,"### CREANDO ESTRUCTURAS DE MEMORIA###");
+    int pcb_actualizado = 0;
+    enviar_PCB(socket_memoria, pcb, CREAR_ESTRUCTURAS_ADMIN );
+    while(conexion_memoria != -1 && pcb_actualizado == 0) {
+        op_code cod_op = recibir_operacion(socket_memoria);
+        switch(cod_op) {
+            case ACTUALIZAR_INDICE_TABLA_PAGINAS:
+                ;
+                t_pcb *pcb_aux = recibir_PCB(socket_memoria);
+                pcb->tabla_segmentos = pcb_aux->tabla_segmentos;
+                pcb_actualizado = 1;
+                break;
+
+            default: ;
+        }
+    }
+}*/

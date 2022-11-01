@@ -39,7 +39,7 @@
 #define MEMORIA         4
 
 
-#define CONNECTION_FILE "../../connection.config"
+#define CONNECTION_FILE "../connection.config"
 
 extern char* LOG_FILE;
 extern char* LOG_NAME;
@@ -86,7 +86,9 @@ typedef enum {
     BLOQUEAR_PROCESO_TECLADO,
     PAGE_FAULT,
     DESALOJAR_PROCESO,
-    FINALIZAR_PROCESO
+    FINALIZAR_PROCESO,
+    ACTUALIZAR_INDICE_TABLA_PAGINAS,
+    CREAR_ESTRUCTURAS_ADMIN
 } op_code;
 
 typedef struct{
@@ -169,7 +171,7 @@ void agregar_entero(t_paquete * paquete, uint32_t entero);
 t_list *deserializar_lista_instrucciones(void *stream, uint32_t tamanio_lista_instrucciones);
 
 //Obtiene los segmentos deserialiados
-t_list *deserializar_lista_segmentos(void *stream, uint32_t tamanio_lista_segmentos);
+t_list *deserializar_lista_segmentos(void *stream, uint32_t tamanio_tabla_segmentos);
 
 
 //Serializa el paquete para poder ser enviado

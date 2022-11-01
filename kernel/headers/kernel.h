@@ -25,7 +25,7 @@ pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
 pthread_t thread_clock;
 
-int socket_cpu_dispatch;
+int socket_cpu_dispatch, socket_memoria;
 
 //Semaforos de sincronizacion
 sem_t grado_multiprogramacion;
@@ -87,7 +87,7 @@ void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos);
 
 // Funciones de planificacion ===============================
 
@@ -128,4 +128,7 @@ t_pcb* quitar_de_ready(estado_pcb* cola_ready);
 int algoritmo_es_feedback();
 void logear_cambio_estado(t_pcb* pcb,estado_pcb anterior, estado_pcb actual);
 char* traducir_estado_pcb(estado_pcb);
+
+void crear_estructuras_memoria(t_pcb* pcb);
+
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H

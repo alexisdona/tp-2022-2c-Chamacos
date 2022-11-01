@@ -6,8 +6,8 @@ int main(int argc, char* argv[]){
 	
 	char* CONFIG_FILE = argv[1];
 
-    logger = iniciar_logger(LOG_FILE,LOG_NAME);
-    consola_config = iniciar_config(CONFIG_FILE);
+    logger = iniciar_logger(LOG_FILE, LOG_NAME);
+    memoria_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
 	//Levanto el servidor de memoria

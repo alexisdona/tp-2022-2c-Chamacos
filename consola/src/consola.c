@@ -22,12 +22,12 @@ int main(int argc, char* argv[]) {
     uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
-    t_list* segmentos = convertir_segmentos(segmentos_config); 
+    t_list* tabla_segmentos = convertir_segmentos(segmentos_config);
 
-    enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
-    log_info(logger,"Envie lista de instrucciones y segmentos");
+    enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, tabla_segmentos);
+    log_info(logger,"Envie lista de instrucciones y tabla_segmentos");
     list_destroy(instrucciones);
-    list_destroy(segmentos);
+    list_destroy(tabla_segmentos);
 
 
     while(socket_kernel!=-1){
@@ -131,16 +131,15 @@ dispositivo obtener_dispositivo(char* dispositivo){
 }
 
 t_list* convertir_segmentos(char** segmentos_config){
-    t_list* lista_segmentos = list_create();
+    t_list* tabla_segmentos = list_create();
     uint32_t tam = string_array_size(segmentos_config);
     for(int i=0; i < tam; i++){
-        void* valor_segmento= malloc(sizeof(uint32_t));
-        int valor = atoi(segmentos_config[i]);
-        memcpy(valor_segmento,&valor,sizeof(uint32_t));
-        list_add(lista_segmentos, valor_segmento);
+        t_segmento* segmento = malloc(sizeof(t_segmento));
+        segmento->tamanio_segmento = atoi(segmentos_config[i]);
+        segmento->indice_tabla_paginas = 0; //todavía no sabemos adonde apunta la tabla de paginas de cada segmento
+        list_add(tabla_segmentos, segmento);
     }
-    return lista_segmentos;
-
+    return tabla_segmentos;
 }
 
 void terminar_programa(uint32_t conexion, t_log* logger, t_config* config) {
