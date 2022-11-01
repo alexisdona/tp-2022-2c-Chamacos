@@ -2,6 +2,7 @@
 #define TP_2022_2C_CHAMACOS_KERNEL_H
 
 #include "../../shared/headers/shared.h"
+#include "signal.h"
 
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
@@ -128,4 +129,9 @@ t_pcb* quitar_de_ready(estado_pcb* cola_ready);
 int algoritmo_es_feedback();
 void logear_cambio_estado(t_pcb* pcb,estado_pcb anterior, estado_pcb actual);
 char* traducir_estado_pcb(estado_pcb);
+
+//===========================================================
+void sig_handler(int signo);
+void destruir_pcb(t_pcb*);
+
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H

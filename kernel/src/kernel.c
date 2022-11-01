@@ -2,6 +2,8 @@
 
 int main(int argc, char* argv[]) {
 
+    signal(SIGINT,sig_handler);
+
     ultimo_pid=0;
     INTERRUPCIONES_HABILITADAS = 1;
 
@@ -122,6 +124,7 @@ void* conexion_dispatch(void* socket){
         }
 
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
+        
         pcb = recibir_PCB(socket_dispatch);
         hay_proceso_ejecutando=0;
         pthread_mutex_lock(&mutex_logger);
@@ -286,11 +289,10 @@ void iniciar_planificacion(){
     pthread_t long_planner;
 
     new_queue = queue_create();
-    exit_queue = queue_create();
     ready1_queue = queue_create();
-    if(string_contains(algoritmo_planificacion,"FEEDBACK")){
-        ready2_queue = queue_create();
-    }
+    //if(string_contains(algoritmo_planificacion,"FEEDBACK")){
+    ready2_queue = queue_create();
+    //}
     blocked_screen_queue = queue_create();
     blocked_keyboard_queue = queue_create();
     blocked_page_fault_queue = queue_create();
@@ -501,4 +503,32 @@ char* traducir_estado_pcb(estado_pcb estado){
         case EXIT_S:                return "EXIT";
         default:                    return "ERROR - NOMBRE ESTADO INADECUADO";
     }
+}
+
+void sig_handler(int signo){
+    printf("\n");
+    log_warning(logger,"SIG HANDLER");
+    if (signo == SIGINT){
+        log_warning(logger,"Finalizando por CTRL + C");
+
+        queue_destroy(new_queue);
+        queue_destroy(ready1_queue);
+        queue_destroy(ready2_queue);
+        queue_destroy(blocked_io_queue);
+        queue_destroy(blocked_keyboard_queue);
+        queue_destroy(blocked_screen_queue);
+        queue_destroy(blocked_page_fault_queue);
+        queue_destroy(running_queue);
+        queue_destroy(exit_queue);
+
+        log_destroy(logger);
+        config_destroy(kernel_config);
+        config_destroy(communication_config);
+
+        exit(EXIT_SUCCESS);
+    }
+}
+
+void destruir_pcb(t_pcb*){
+    list_c
 }
