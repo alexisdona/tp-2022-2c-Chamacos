@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     iniciar_planificacion();
 
     int socket_srv_kernel = levantar_servidor();
-    // esperar_modulos(socket_srv_kernel);
+    esperar_modulos(socket_srv_kernel);
     esperar_consolas(socket_srv_kernel);
 
   }
@@ -456,8 +456,16 @@ void* manejador_estado_blocked_io(void* x){
 }
 
 void* manejador_estado_blocked_screen(void* x){
-        sem_wait(&bloquear_por_pantalla);
+    t_pcb* pcb;
 
+    while(1){
+        sem_wait(&bloquear_por_pantalla);
+        pcb = quitar_pcb_de_cola(mutex_blocked_screen,blocked_screen_queue);
+        pthread_mutex_lock(&mutex_logger);
+        log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <PANTALLA>"WHT,pcb->pid));
+        pthread_mutex_unlock(&mutex_logger);
+        
+    }
 }
 
 void* manejador_estado_blocked_keyboard(void* x){

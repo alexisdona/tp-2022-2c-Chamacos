@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
     t_list* segmentos = convertir_segmentos(segmentos_config); 
 
 	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_DE_RESPUESTA");
+    log_info(logger,string_from_format("Retardo de impresion: %ds",tiempo_respuesta/1000));
 
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, segmentos);
     log_info(logger,"Envie lista de instrucciones y segmentos");
@@ -42,14 +43,14 @@ int main(int argc, char* argv[]) {
             case IMPRIMIR_VALOR:
 				log_info(logger, "Kernel envió un valor para imprimir");
 				uint32_t valor = recibir_valor(socket_kernel);
-				printf("Valor recibido: %d\n", valor);
+				log_info(logger, string_from_format("Valor recibido: %d", valor));
+				usleep(tiempo_respuesta*1000);
 				break;
 			case ESPERAR_INPUT_VALOR:
 				log_info(logger, "Kernel solicitó un valor");
 				printf("Ingrese un valor: ");
 				uint32_t input;
 				scanf("%d", &input);
-				sleep(tiempo_respuesta);
 				enviar_input_valor(input, socket_kernel);
 				break;
 			default:
