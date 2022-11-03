@@ -181,6 +181,7 @@ void* conexion_dispatch(void* socket){
         }
         sem_post(&cpu_libre);
     }
+    return EXIT_SUCCESS;
 }
 
 void* conexion_interrupt(void* socket){
@@ -197,6 +198,7 @@ void* conexion_interrupt(void* socket){
             pthread_detach(thread_clock);
         }
     }
+    return EXIT_SUCCESS;
 }
 
 void* clock_interrupt(void* socket){
@@ -212,6 +214,7 @@ void* clock_interrupt(void* socket){
         pthread_mutex_unlock(&mutex_logger);
         enviar_interrupcion(socket_interrupt);
     }
+    return EXIT_SUCCESS;
 }
 
 void *conexion_memoria(void* socket){
@@ -219,6 +222,7 @@ void *conexion_memoria(void* socket){
     while(socket_memoria != -1){
         op_code codigo_operacion = recibir_operacion(socket_memoria);
     }
+    return EXIT_SUCCESS;
 }
 
 void *conexion_consola(void* socket){
@@ -264,6 +268,7 @@ void *conexion_consola(void* socket){
                 exit(EXIT_FAILURE);
         }
     }
+    return EXIT_SUCCESS;
 }
 
 t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos, uint32_t socket_consola) {
@@ -369,6 +374,7 @@ void* planificador_largo_plazo(void* x){
     pthread_create(&process_terminator_thread, NULL, finalizador_procesos, NULL);
     pcb_a_dispatcher();
     pthread_join(process_terminator_thread,NULL);
+    return EXIT_SUCCESS;
 }
 
 void pcb_a_dispatcher(){
@@ -389,6 +395,7 @@ void* finalizador_procesos(void* x){
         //Avisar a memoria
         //Avisar a consola
     }
+    return EXIT_SUCCESS;
 }
 
 void* planificador_corto_plazo(void* x){
@@ -409,6 +416,7 @@ void* planificador_corto_plazo(void* x){
 
     pthread_join(ready_thread,NULL);
 
+    return EXIT_SUCCESS;
 }
 
 void* manejador_estado_ready(void* x){
@@ -421,6 +429,7 @@ void* manejador_estado_ready(void* x){
         logear_cambio_estado(pcb,ready_anterior,RUNNING);
         sem_post(&enviar_pcb_a_cpu);
     }
+    return EXIT_SUCCESS;
 }
 
 void* manejador_estado_blocked_pf(void* x){
@@ -443,6 +452,7 @@ void* manejador_estado_blocked_io(void* x){
         usleep(tiempo_bloqueado);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_IO,BLOQUEADO_IO);
     }
+    return EXIT_SUCCESS;
 }
 
 void* manejador_estado_blocked_screen(void* x){
@@ -485,6 +495,7 @@ t_pcb* quitar_de_ready(estado_pcb* ready){
     pthread_mutex_lock(&mutex_logger);
     log_error(logger,"Se intento quitar un pcb de alguna cola de READY pero ambas estan vacias");
     pthread_mutex_unlock(&mutex_logger);
+    return EXIT_SUCCESS;
 }
 
 int algoritmo_es_feedback(){
