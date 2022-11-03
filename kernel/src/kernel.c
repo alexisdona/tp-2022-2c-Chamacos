@@ -239,7 +239,7 @@ void *conexion_consola(void* socket){
                 t_list* segmentos = recibir_lista_segmentos(socket_consola);
 
                 pthread_mutex_lock(&mutex_pid);
-                t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
+                t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos, socket_consola);
                 pthread_mutex_unlock(&mutex_pid);
                 agregar_pcb_a_cola(pcb,mutex_new,new_queue);
                 pthread_mutex_lock(&mutex_logger);
@@ -266,7 +266,7 @@ void *conexion_consola(void* socket){
     }
 }
 
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos, uint32_t socket_consola) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = ultimo_pid;
@@ -278,6 +278,7 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos) {
     pcb->datos_segmentos.segmentos = segmentos;
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
+    pcb->socket_consola = socket_consola;
     ultimo_pid++;
 
     return pcb;

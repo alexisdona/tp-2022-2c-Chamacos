@@ -21,6 +21,7 @@ typedef struct {
   t_registros_pcb registros_pcb;
   t_list* lista_instrucciones;
   t_segmentos datos_segmentos;
+  uint32_t socket_consola;
 } t_pcb;
 
 
