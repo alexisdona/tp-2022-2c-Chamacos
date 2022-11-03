@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
     int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
-    uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
+    enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* segmentos = convertir_segmentos(segmentos_config); 
@@ -40,15 +40,15 @@ int main(int argc, char* argv[]) {
                 recibir_mensaje(socket_kernel, logger);
                 break;
             case IMPRIMIR_VALOR:
-				log_info(logger, "Kernel envió valor %zu para imprimir");
+				log_info(logger, "Kernel envió un valor para imprimir");
 				uint32_t valor = recibir_valor(socket_kernel);
-				printf("Valor recibido: %zu", valor);
+				printf("Valor recibido: %d\n", valor);
 				break;
 			case ESPERAR_INPUT_VALOR:
 				log_info(logger, "Kernel solicitó un valor");
 				printf("Ingrese un valor: ");
 				uint32_t input;
-				scanf("%zu", &input);
+				scanf("%d", &input);
 				sleep(tiempo_respuesta);
 				enviar_input_valor(input, socket_kernel);
 				break;
