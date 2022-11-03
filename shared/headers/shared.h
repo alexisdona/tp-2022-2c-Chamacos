@@ -192,9 +192,18 @@ void* recibir_buffer(int socket_cliente);
 
 void enviar_mensaje(char* mensaje, int socket);
 void recibir_mensaje(int socket_cliente, t_log *logger);
+
 t_list* recibir_lista_instrucciones(int socket);
 t_list* recibir_lista_segmentos(int socket);
+
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
+
+void enviar_imprimir_valor(uint32_t numero, int socket);
+uint32_t recibir_valor(int socket);
+uint32_t deserializar_entero(void* stream);
+void enviar_esperar_input_valor(int socket);
+void enviar_input_valor(uint32_t valor, int socket);
+
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
 void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion);
