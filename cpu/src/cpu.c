@@ -16,19 +16,19 @@ int main(int argc, char* argv[]){
 	int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
     int socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
-    uint32_t respuesta_memoria = enviar_handshake_inicial(socket_memoria,CPU_DISPATCH,logger);
+    enviar_handshake_inicial(socket_memoria,CPU_DISPATCH,logger);
 
 	pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_memoria);
     pthread_detach(thread_escucha_memoria);
 
 	int socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
-    uint32_t respuesta_dispatch = enviar_handshake_inicial(socket_kernel_dispatch,CPU_DISPATCH,logger);
+    enviar_handshake_inicial(socket_kernel_dispatch,CPU_DISPATCH,logger);
 
 	pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_kernel_dispatch);
     pthread_detach(thread_escucha_dispatch);
 
 	int socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
-    uint32_t respuesta_interrupt = enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
+    enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
 
 	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
@@ -65,6 +65,7 @@ void* conexion_memoria(void* socket){
     while(socket_memoria != -1){
         op_code codigo_operacion = recibir_operacion(socket_memoria);
 	}
+	return EXIT_SUCCESS;
 }
 
 void* conexion_dispatch(void* socket){
@@ -85,7 +86,8 @@ void* conexion_dispatch(void* socket){
 			
 			exit(EXIT_FAILURE);
 		}
-	}
+	}    
+	return EXIT_SUCCESS;
 }
 
 void* conexion_interrupt(void* socket){
@@ -104,6 +106,7 @@ void* conexion_interrupt(void* socket){
 			exit(EXIT_FAILURE);
 		}
 	}
+	return EXIT_SUCCESS;
 }
 
 //--------Ciclo de instruccion---------
