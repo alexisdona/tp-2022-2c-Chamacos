@@ -362,7 +362,7 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
     agregar_entero(paquete, pcb->datos_segmentos.indice_tabla_paginas_segmentos);
     agregar_lista_instrucciones(paquete, pcb->lista_instrucciones);
     agregar_lista_segmentos(paquete, pcb->datos_segmentos.segmentos);
-
+    agregar_entero(paquete, pcb->socket_consola);
     enviar_paquete(paquete, socket_destino);
     eliminar_paquete(paquete);
 }
@@ -418,6 +418,9 @@ t_pcb* recibir_PCB(int socket_desde){
     recv(socket_desde, buffer, tamanio_lista_segmentos, 0 );
     lista_segmentos = deserializar_lista_segmentos(buffer, tamanio_lista_segmentos);
     pcb->datos_segmentos.segmentos = lista_segmentos;
+
+    recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
+    pcb->socket_consola = auxiliar;
 
     return pcb;
 }

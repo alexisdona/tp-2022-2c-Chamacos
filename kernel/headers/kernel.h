@@ -87,7 +87,7 @@ void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos, uint32_t socket_consola);
 
 // Funciones de planificacion ===============================
 
