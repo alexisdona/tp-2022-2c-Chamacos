@@ -6,7 +6,7 @@
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
 
-uint32_t valor_consola;
+uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
 uint32_t ultimo_pid;
@@ -42,6 +42,7 @@ sem_t bloquear_por_io;
 sem_t bloquear_por_pantalla;
 sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
+sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
 
 //Mutex para proteger las colas
@@ -131,6 +132,7 @@ int algoritmo_es_feedback();
 void logear_cambio_estado(t_pcb* pcb,estado_pcb anterior, estado_pcb actual);
 char* traducir_estado_pcb(estado_pcb);
 
-uint32_t obtener_valor_registro_por_bloqueo_pantalla(t_pcb* pcb);
+registro_cpu* obtener_registro_por_bloqueo_pantalla_teclado(t_pcb* pcb);
 t_instruccion* obtener_instruccion_anterior(t_pcb* pcb);
+void actualizar_registro_por_teclado(t_pcb* pcb, uint32_t input);
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H

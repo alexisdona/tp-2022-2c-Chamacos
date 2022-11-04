@@ -453,14 +453,6 @@ uint32_t recibir_valor(int socket){
 	return *numero;
 }
 
-void enviar_esperar_input_valor(int socket){
-	op_code codigo = ESPERAR_INPUT_VALOR;
-	t_paquete* paquete = crear_paquete();
-	paquete->codigo_operacion = codigo;
-	enviar_paquete(paquete, socket);
-	eliminar_paquete(paquete);
-}
-
 void enviar_input_valor(uint32_t valor, int socket){
 	op_code codigo = INPUT_VALOR;
 	t_paquete* paquete = crear_paquete();

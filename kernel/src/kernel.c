@@ -253,13 +253,15 @@ void *conexion_consola(void* socket){
                 break;
             
 			case INPUT_VALOR:
-				valor_consola = recibir_valor(socket_consola);
+				input_consola = recibir_valor(socket_consola);
 				pthread_mutex_lock(&mutex_logger);
-				log_info(logger,string_from_format(BLU"Valor recibido de consola: %d"BLU,valor_consola));
+				log_info(logger,string_from_format(BLU"Conexion Consola: Valor recibido de consola: %d"BLU,input_consola));
 				pthread_mutex_unlock(&mutex_logger);
+                sem_post(&desbloquear_teclado);
 				break;
 
             case IMPRIMIR_VALOR:
+                log_info(logger,BLU"Conexion Consola: Valor impreso."WHT);
                 sem_post(&desbloquear_pantalla);
                 break;
                 
@@ -353,6 +355,7 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&bloquear_por_pantalla,0,0);
     sem_init(&desbloquear_pantalla,0,0);
     sem_init(&bloquear_por_teclado,0,0);
+    sem_init(&desbloquear_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
 }
 
@@ -398,6 +401,7 @@ void* finalizador_procesos(void* x){
         sem_wait(&finish_process);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_exit,exit_queue);
 
+        log_info(logger,BLU"Conexion Consola: Finalizar consola"WHT);
         enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
         sem_post(&grado_multiprogramacion);
         free(pcb);
@@ -472,7 +476,8 @@ void* manejador_estado_blocked_screen(void* x){
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <PANTALLA>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
-        uint32_t valor_a_imprimir = obtener_valor_registro_por_bloqueo_pantalla(pcb);
+        uint32_t valor_a_imprimir = *obtener_registro_por_bloqueo_pantalla_teclado(pcb);
+        log_info(logger,BLU"Conexion Consola: Solicitud de imprimir valor."WHT);
         enviar_imprimir_valor(valor_a_imprimir,pcb->socket_consola);
         sem_wait(&desbloquear_pantalla);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
@@ -480,8 +485,20 @@ void* manejador_estado_blocked_screen(void* x){
 }
 
 void* manejador_estado_blocked_keyboard(void* x){
-        sem_wait(&bloquear_por_teclado);
+    t_pcb* pcb;
 
+    while(1){
+        sem_wait(&bloquear_por_teclado);
+        pcb = quitar_pcb_de_cola(mutex_blocked_keyboard,blocked_keyboard_queue);
+        pthread_mutex_lock(&mutex_logger);
+        log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <TECLADO>"WHT,pcb->pid));
+        pthread_mutex_unlock(&mutex_logger);
+        log_info(logger,BLU"Conexion Consola: Solicitud de valor."WHT);
+        enviar_codigo_op(pcb->socket_consola,INPUT_VALOR);
+        sem_wait(&desbloquear_teclado);
+        actualizar_registro_por_teclado(pcb,input_consola);
+        agregar_a_ready(pcb,BLOQUEAR_PROCESO_TECLADO,BLOQUEADO_TECLADO);
+    }
 }
 
 void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t* tiempo_bloqueo){
@@ -490,12 +507,17 @@ void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t*
     *tiempo_bloqueo = tiempos_bloqueos[*disp] * instruccion_anterior->parametros[1] * 1000;
 }
 
-uint32_t obtener_valor_registro_por_bloqueo_pantalla(t_pcb* pcb){
+registro_cpu* obtener_registro_por_bloqueo_pantalla_teclado(t_pcb* pcb){
     t_instruccion* instruccion_anterior = obtener_instruccion_anterior(pcb);
     registro_cpu registro = instruccion_anterior->parametros[1];
-    return *obtener_registro(pcb, registro);
+    return obtener_registro(pcb, registro);
 }
 
+void actualizar_registro_por_teclado(t_pcb* pcb,uint32_t input){
+    registro_cpu* registro_pcb = obtener_registro_por_bloqueo_pantalla_teclado(pcb);
+    (*registro_pcb) = input; 
+    input=0;
+}
 
 
 t_instruccion* obtener_instruccion_anterior(t_pcb* pcb){

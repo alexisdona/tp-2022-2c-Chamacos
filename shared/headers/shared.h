@@ -78,7 +78,6 @@ typedef struct{
 typedef enum {
     MENSAJE,
 	IMPRIMIR_VALOR,
-	ESPERAR_INPUT_VALOR,
 	INPUT_VALOR,
     LISTA_INSTRUCCIONES_SEGMENTOS,
     PCB,

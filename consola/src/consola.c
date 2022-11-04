@@ -43,17 +43,18 @@ int main(int argc, char* argv[]) {
                 recibir_mensaje(socket_kernel, logger);
                 break;
             case IMPRIMIR_VALOR:
-				log_info(logger, "Kernel envió un valor para imprimir");
+				log_info(logger, BLU"Kernel envió un valor para imprimir"WHT);
 				uint32_t valor = recibir_valor(socket_kernel);
 				log_info(logger, string_from_format(CYN"Valor recibido: %d"WHT, valor));
 				usleep(tiempo_respuesta*1000);
                 enviar_codigo_op(socket_kernel,IMPRIMIR_VALOR);
 				break;
-			case ESPERAR_INPUT_VALOR:
-				log_info(logger, "Kernel solicitó un valor");
+			case INPUT_VALOR:
+				log_info(logger, BLU"Kernel solicitó un valor"WHT);
 				printf("Ingrese un valor: ");
 				uint32_t input;
 				scanf("%d", &input);
+                log_info(logger,BLU"Valor enviado al kernel."WHT);
 				enviar_input_valor(input, socket_kernel);
 				break;
             case FINALIZAR_PROCESO:
