@@ -263,6 +263,9 @@ void *conexion_consola(void* socket){
                 sem_post(&desbloquear_pantalla);
                 break;
                 
+            case -1:
+                return EXIT_SUCCESS;
+
             default:
                 pthread_mutex_lock(&mutex_logger);
                 log_warning(logger,"Conexion Consola -> Recibio una operacion incorrecta");
@@ -395,10 +398,10 @@ void* finalizador_procesos(void* x){
         sem_wait(&finish_process);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_exit,exit_queue);
 
-        free(pcb);
-        printf("Finalizando proceso\n");
+        enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
+        sem_post(&grado_multiprogramacion);
+        //free(pcb);
         //Avisar a memoria
-        //Avisar a consola
     }
     return EXIT_SUCCESS;
 }

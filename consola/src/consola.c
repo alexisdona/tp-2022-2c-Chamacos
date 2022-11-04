@@ -56,6 +56,9 @@ int main(int argc, char* argv[]) {
 				scanf("%d", &input);
 				enviar_input_valor(input, socket_kernel);
 				break;
+            case FINALIZAR_PROCESO:
+                terminar_programa(socket_kernel,logger,communication_config);
+                return EXIT_SUCCESS;
 			default:
                 log_trace(logger, "Operación desconocida en consola");
                 terminar_programa(socket_kernel, logger, communication_config);
