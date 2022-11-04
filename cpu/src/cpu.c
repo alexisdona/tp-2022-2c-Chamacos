@@ -155,7 +155,6 @@ op_code fase_execute(t_instruccion* instruccion, uint32_t operador){
 	switch(instruccion->codigo_operacion){
 		case SET:
 			proceso_respuesta = operacion_SET(instruccion->parametros[0],instruccion->parametros[1]);
-			printf("PCB: [AX]:[%d] [BX]:[%d] [CX]:[%d] [DX]:[%d]\n",(pcb->registros_pcb).registro_ax,(pcb->registros_pcb).registro_bx,(pcb->registros_pcb).registro_cx,(pcb->registros_pcb).registro_dx);
 			break;
 		case ADD:
 			proceso_respuesta = operacion_ADD(instruccion->parametros[0],instruccion->parametros[1]);

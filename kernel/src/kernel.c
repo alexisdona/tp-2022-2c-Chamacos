@@ -260,9 +260,6 @@ void *conexion_consola(void* socket){
 				break;
 
             case IMPRIMIR_VALOR:
-                pthread_mutex_lock(&mutex_logger);
-                log_info(logger,"Valor mostrado por pantalla");
-                pthread_mutex_unlock(&mutex_logger);
                 sem_post(&desbloquear_pantalla);
                 break;
                 
@@ -472,7 +469,8 @@ void* manejador_estado_blocked_screen(void* x){
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <PANTALLA>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
-        //enviar_imprimir_valor(pcb->registros_pcb.);
+        uint32_t valor_a_imprimir = obtener_valor_registro_por_bloqueo_pantalla(pcb);
+        enviar_imprimir_valor(valor_a_imprimir,pcb->socket_consola);
         sem_wait(&desbloquear_pantalla);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
     }

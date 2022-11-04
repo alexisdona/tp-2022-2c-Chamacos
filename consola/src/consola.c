@@ -35,6 +35,8 @@ int main(int argc, char* argv[]) {
 
     while(socket_kernel!=-1){
 
+        printf("\n");
+        log_info(logger, "Esperando instrucciones.");
         op_code cod_op = recibir_operacion(socket_kernel);
         switch (cod_op) {
             case MENSAJE:
@@ -43,8 +45,9 @@ int main(int argc, char* argv[]) {
             case IMPRIMIR_VALOR:
 				log_info(logger, "Kernel envió un valor para imprimir");
 				uint32_t valor = recibir_valor(socket_kernel);
-				log_info(logger, string_from_format("Valor recibido: %d", valor));
+				log_info(logger, string_from_format(CYN"Valor recibido: %d"WHT, valor));
 				usleep(tiempo_respuesta*1000);
+                enviar_codigo_op(socket_kernel,IMPRIMIR_VALOR);
 				break;
 			case ESPERAR_INPUT_VALOR:
 				log_info(logger, "Kernel solicitó un valor");

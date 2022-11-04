@@ -23,7 +23,7 @@ t_config* iniciar_config(char* file) {
 
 void logear_instruccion(t_log* logger, t_instruccion* instruccion){
     char* instruccion_traducida = traducir_instruccion_string(instruccion);
-    log_debug(logger,string_from_format("INSTRUCCION: %s",instruccion_traducida));
+    log_info(logger,string_from_format(GRN"INSTRUCCION: %s"WHT,instruccion_traducida));
 }
 
 char* traducir_instruccion_string(t_instruccion* instr){
