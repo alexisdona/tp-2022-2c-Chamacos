@@ -124,6 +124,7 @@ void logear_instruccion(t_log* logger, t_instruccion* instrucicon);
 char* traducir_instruccion_string(t_instruccion* instruccion);
 char* traducir_registro_cpu(registro_cpu registro);
 char* traducir_dispositivo(dispositivo disp);
+registro_cpu* obtener_registro(t_pcb* pcb, registro_cpu registro);
 
 //Comunicacion===============================================
 
@@ -203,6 +204,7 @@ uint32_t recibir_valor(int socket);
 uint32_t deserializar_entero(void* stream);
 void enviar_esperar_input_valor(int socket);
 void enviar_input_valor(uint32_t valor, int socket);
+void enviar_codigo_op(int socket, op_code codigo);
 
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);

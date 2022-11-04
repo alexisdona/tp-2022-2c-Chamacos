@@ -115,7 +115,11 @@ t_instruccion* generar_instruccion(char* registro){
             break;
         case IO:
             instruccion->parametros[0]=obtener_dispositivo(operando1);
-            instruccion->parametros[1]=atoi(operando2);
+            if(string_equals_ignore_case(operando1,"PANTALLA") || string_equals_ignore_case(operando1,"TECLADO")){
+                instruccion->parametros[1]=obtener_registro_cpu(operando2);
+            }else{
+                instruccion->parametros[1]=atoi(operando2);
+            }
             break;
         case EXIT: default:
             instruccion->parametros[0]=0;
@@ -130,7 +134,7 @@ instr_code obtener_cop(char* operacion){
 	else if (string_contains(operacion,"ADD")) 	    return ADD;
 	else if (string_contains(operacion,"MOV_IN")) 	return MOV_IN;
 	else if (string_contains(operacion,"MOV_OUT")) 	return MOV_OUT;
-	else if (string_contains(operacion,"I/O"))       return IO;
+	else if (string_contains(operacion,"I/O"))      return IO;
 	else                                            return EXIT;
 }
 
@@ -142,8 +146,10 @@ registro_cpu obtener_registro_cpu(char* registro){
 }
 
 dispositivo obtener_dispositivo(char* dispositivo){
-    if (string_contains(dispositivo,"DISCO")) return DISCO;
-    else                                     return IMPRESORA;
+    if (string_contains(dispositivo,"DISCO"))           return DISCO;
+    else if(string_contains(dispositivo,"IMPRESORA"))   return IMPRESORA;
+    else if(string_contains(dispositivo,"PANTALLA"))    return PANTALLA;
+    else                                                return TECLADO;
 }
 
 t_list* convertir_segmentos(char** segmentos_config){

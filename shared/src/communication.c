@@ -426,7 +426,10 @@ t_pcb* recibir_PCB(int socket_desde){
 }
 
 void enviar_interrupcion(int socket){
-    op_code codigo = INTERRUPCION;
+    enviar_codigo_op(socket,INTERRUPCION);
+}
+
+void enviar_codigo_op(int socket, op_code codigo){
     send(socket,&codigo,sizeof(op_code),0);
 }
 

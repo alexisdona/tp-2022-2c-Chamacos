@@ -154,10 +154,11 @@ op_code fase_execute(t_instruccion* instruccion, uint32_t operador){
 	op_code proceso_respuesta = CONTINUA_PROCESO;
 	switch(instruccion->codigo_operacion){
 		case SET:
-			proceso_respuesta = operacion_SET(&(instruccion->parametros[0]),instruccion->parametros[1]);
+			proceso_respuesta = operacion_SET(instruccion->parametros[0],instruccion->parametros[1]);
+			printf("PCB: [AX]:[%d] [BX]:[%d] [CX]:[%d] [DX]:[%d]\n",(pcb->registros_pcb).registro_ax,(pcb->registros_pcb).registro_bx,(pcb->registros_pcb).registro_cx,(pcb->registros_pcb).registro_dx);
 			break;
 		case ADD:
-			proceso_respuesta = operacion_ADD(&(instruccion->parametros[0]),instruccion->parametros[1]);
+			proceso_respuesta = operacion_ADD(instruccion->parametros[0],instruccion->parametros[1]);
 			break;
 		case MOV_IN:
 			proceso_respuesta = operacion_MOV_IN(&(instruccion->parametros[0]),instruccion->parametros[1]);
@@ -175,15 +176,18 @@ op_code fase_execute(t_instruccion* instruccion, uint32_t operador){
 	return proceso_respuesta;
 }
 
-op_code operacion_SET(registro_cpu* registro,uint32_t valor){
-	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <SET> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),valor));
-	(*registro) = valor;
+op_code operacion_SET(registro_cpu registro,uint32_t valor){
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <SET> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(registro),valor));
+	registro_cpu* registro_pcb = obtener_registro(pcb,registro); 
+	(*registro_pcb) = valor;
 	return CONTINUA_PROCESO;
 }
 
-op_code operacion_ADD(registro_cpu* registro1,registro_cpu registro2){
-	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <ADD> - <%s> - <%s>"WHT,pcb->pid,traducir_registro_cpu(*registro1),traducir_registro_cpu(registro2)));
-	(*registro1) = (*registro1 + registro2);
+op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <ADD> - <%s> - <%s>"WHT,pcb->pid,traducir_registro_cpu(registro1),traducir_registro_cpu(registro2)));
+	registro_cpu* registro_pcb1 = obtener_registro(pcb,registro1); 
+	registro_cpu* registro_pcb2 = obtener_registro(pcb,registro2); 
+	(*registro_pcb1) = (*registro_pcb1 + *registro_pcb2);
 	return CONTINUA_PROCESO;
 }
 
