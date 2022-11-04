@@ -400,7 +400,7 @@ void* finalizador_procesos(void* x){
 
         enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
         sem_post(&grado_multiprogramacion);
-        //free(pcb);
+        free(pcb);
         //Avisar a memoria
     }
     return EXIT_SUCCESS;
