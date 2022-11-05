@@ -116,7 +116,8 @@ void* conexion_dispatch(void* socket){
         log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
         hay_proceso_ejecutando=1;
-        sem_post(&continuar_conteo_quantum);
+
+        if(!list_is_empty(ready1_queue)) sem_post(&continuar_conteo_quantum);
 
         if(algoritmo_planificacion_tiene_desalojo() && interrupciones_iniciadas == INTERRUPCIONES_HABILITADAS){
             interrupciones_iniciadas--;
@@ -546,6 +547,7 @@ void agregar_a_ready(t_pcb* pcb, op_code motivo, estado_pcb anterior){
     if(algoritmo_es_feedback() && motivo == INTERRUPCION){
         logear_cambio_estado(pcb,anterior,READY2);
         agregar_pcb_a_lista(pcb,mutex_ready2,ready2_queue);
+        /*if(list_is_empty(ready1_queue)) pthread_cancel(thread_clock);*/
     }else{
         logear_cambio_estado(pcb,anterior,READY1);
         agregar_pcb_a_lista(pcb,mutex_ready1,ready1_queue);
