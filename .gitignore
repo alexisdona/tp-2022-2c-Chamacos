@@ -50,3 +50,26 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+.idea
+*.xml
+*.iml
+*.name
+
+CMakeLists.txt
+cmake-build-debug/
+
+consola/Debug/
+kernel/Debug/
+consola/Default/
+kernel/Default/
+cpu/Debug/
+cpu/Default/
+memoria/Debug/
+memoria/Default/
+
+*.project
+*.project
+*.log
+
+#CLion files

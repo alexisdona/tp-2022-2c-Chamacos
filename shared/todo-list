@@ -1,0 +1,25 @@
+01/10/2022 - Carrillo Franco
+Agregado de librerias para semaforos e hilos.
+Separacion de funciones: envio y recepcion de instrucciones y segmentos
+
+19/09/2022 - Carrillo Franco
+Estructurado de carpetas.
+Agregado de funciones para la comunicacion:
+-Envio de instrucciones+segmentos
+
+16/09/2022 - Carrillo Franco
+Agregado de funciones para la comunicacion:
+-Armado y gestion de paquetes de red
+-Envios de paquetes
+-Envios de mensajes
+-Serializacion de paquetes
+
+15/09/2022 - Carrillo Franco
+Agregado de funciones para la comunicacion:
+-enviar y recibir handshake inicial de conexion
+-identificadores para verificar el handshake y posteriormente diferenciar los hilos para los servidores
+
+14/09/2022 - Carrillo Franco
+Separacion de usos de la libreria:
+-Comunicacion
+-Utilidades comunes a los modulos
