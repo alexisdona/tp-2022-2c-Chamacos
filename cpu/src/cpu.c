@@ -10,6 +10,8 @@ int main(int argc, char* argv[]){
     cpu_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
+	lista_dispositivos = config_get_array_value(cpu_config,"DISPOSITIVOS_IO");
+
 	char* IP_MEMORIA = config_get_string_value(communication_config,"IP_MEMORIA");
     int PUERTO_MEMORIA = config_get_int_value(communication_config,"PUERTO_MEMORIA");
 	char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");

@@ -10,6 +10,8 @@ t_config* cpu_config;
 t_config* communication_config;
 t_log* logger;
 
+char** lista_dispositivos;
+
 uint32_t hubo_interrupcion;
 uint32_t retardo_operacion_cpu;
 t_pcb* pcb;

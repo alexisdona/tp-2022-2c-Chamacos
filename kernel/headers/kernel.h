@@ -14,6 +14,7 @@ uint32_t quantum;
 uint32_t* tiempos_bloqueos;
 op_code motivo_bloqueo;
 char* algoritmo_planificacion;
+char** lista_dispositivos;
 
 t_config* kernel_config;
 t_config* communication_config;

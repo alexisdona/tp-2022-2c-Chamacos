@@ -38,11 +38,14 @@
 #define CPU_INTERRUPT   3
 #define MEMORIA         4
 
+#define PANTALLA        100
+#define TECLADO         200
 
 #define CONNECTION_FILE "../../connection.config"
 
 extern char* LOG_FILE;
 extern char* LOG_NAME;
+extern char** lista_dispositivos;
 
 typedef uint32_t operando;
 typedef enum
@@ -62,12 +65,16 @@ typedef enum{
     DX
 } registro_cpu;
 
+/*
 typedef enum{
     DISCO,
     IMPRESORA,
     PANTALLA,
     TECLADO
 } dispositivo;
+*/
+
+typedef uint32_t dispositivo;
 
 typedef struct{
     instr_code codigo_operacion;

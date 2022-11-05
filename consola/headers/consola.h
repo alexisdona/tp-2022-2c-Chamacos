@@ -10,6 +10,7 @@
 t_config* consola_config;
 t_config* communication_config;
 t_log* logger;
+char** lista_dispositivos;
 
 t_list* parsear_instrucciones(t_log* logger, FILE* archivo);
 

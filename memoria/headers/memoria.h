@@ -10,6 +10,8 @@ t_config* consola_config;
 t_config* communication_config;
 t_log* logger;
 
+char** lista_dispositivos;
+
 //Obtiene el ip y puerto del kernel para iniciar el servidor, devuele el socket
 int levantar_servidor();
 

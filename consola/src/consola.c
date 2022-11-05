@@ -12,6 +12,12 @@ int main(int argc, char* argv[]) {
     consola_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
+    lista_dispositivos = config_get_array_value(consola_config,"DISPOSITIVOS_IO");
+
+    for(int i=0; i<string_array_size(lista_dispositivos); i++){
+        printf("Disp: %s\n",lista_dispositivos[i]);
+    }
+
     FILE* archivo_pseudocodigo = fopen(archivo,"r");
 	t_list* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
 
@@ -23,6 +29,8 @@ int main(int argc, char* argv[]) {
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* segmentos = convertir_segmentos(segmentos_config); 
+
+
 
 	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_DE_RESPUESTA");
     log_info(logger,string_from_format("Retardo de impresion: %ds",tiempo_respuesta/1000));
@@ -122,7 +130,8 @@ t_instruccion* generar_instruccion(char* registro){
             break;
         case IO:
             instruccion->parametros[0]=obtener_dispositivo(operando1);
-            if(string_equals_ignore_case(operando1,"PANTALLA") || string_equals_ignore_case(operando1,"TECLADO")){
+            /*if(string_equals_ignore_case(operando1,"PANTALLA") || string_equals_ignore_case(operando1,"TECLADO")){*/
+            if(instruccion->parametros[0] == PANTALLA || instruccion->parametros[0] == TECLADO){
                 instruccion->parametros[1]=obtener_registro_cpu(operando2);
             }else{
                 instruccion->parametros[1]=atoi(operando2);
@@ -151,12 +160,26 @@ registro_cpu obtener_registro_cpu(char* registro){
     else if(string_contains(registro,"CX")) return CX;
     else                                    return DX;
 }
-
+/*
 dispositivo obtener_dispositivo(char* dispositivo){
     if (string_contains(dispositivo,"DISCO"))           return DISCO;
     else if(string_contains(dispositivo,"IMPRESORA"))   return IMPRESORA;
     else if(string_contains(dispositivo,"PANTALLA"))    return PANTALLA;
     else                                                return TECLADO;
+}
+*/
+
+dispositivo obtener_dispositivo(char* dispositivo){
+    for(uint32_t i=0; i < string_array_size(lista_dispositivos); i++){
+        if(string_equals_ignore_case(dispositivo,lista_dispositivos[i])){
+            return i;
+        }
+    }
+    if(string_equals_ignore_case(dispositivo,"PANTALLA")) {
+        return PANTALLA;
+    }else{
+        if(string_equals_ignore_case(dispositivo,"TECLADO")) return TECLADO;
+    }    
 }
 
 t_list* convertir_segmentos(char** segmentos_config){

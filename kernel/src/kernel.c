@@ -14,8 +14,9 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
+    char** lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
-
+    
     tiempos_bloqueos = malloc(string_array_size(lista_bloqueos)*sizeof(uint32_t));
 
     for(int i=0; i<string_array_size(lista_bloqueos); i++){
