@@ -1,10 +1,13 @@
 # tp-2022-2c-ChamacOS
 
-LINK REPOSITORIO:  
+LINK REPOSITORIO:
 [https://github.com/sisoputnfrba/tp-2022-2c-ChamacOS] 
 
-LINK ENUNCIADO:  
-[https://docs.google.com/document/d/1xYmkJXRRddM51fQZfxr3CEuhNtFCWe5YU7hhvsUnTtg/edit]  
+LINK ENUNCIADO:
+[https://docs.google.com/document/d/1xYmkJXRRddM51fQZfxr3CEuhNtFCWe5YU7hhvsUnTtg/edit]
+
+LINK PRUEBAS:
+[https://docs.google.com/document/d/1qxF4h9dkL5L6X6P8qts997wTC1qLxIg6ElZzlU1Xgi4/edit]
 
 ---
 
