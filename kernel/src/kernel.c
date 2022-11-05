@@ -117,7 +117,7 @@ void* conexion_dispatch(void* socket){
         pthread_mutex_unlock(&mutex_logger);
         hay_proceso_ejecutando=1;
 
-        if(!list_is_empty(ready1_queue)) sem_post(&continuar_conteo_quantum);
+        if(algoritmo_planificacion_tiene_desalojo() && ready_anterior_pcb_running==READY1) sem_post(&continuar_conteo_quantum);
 
         if(algoritmo_planificacion_tiene_desalojo() && interrupciones_iniciadas == INTERRUPCIONES_HABILITADAS){
             interrupciones_iniciadas--;
@@ -457,6 +457,7 @@ void* manejador_estado_ready(void* x){
         t_pcb* pcb = quitar_de_ready(&ready_anterior);
         agregar_pcb_a_cola(pcb,mutex_running,running_queue);
         logear_cambio_estado(pcb,ready_anterior,RUNNING);
+        ready_anterior_pcb_running = ready_anterior;
         sem_post(&enviar_pcb_a_cpu);
     }
     return EXIT_SUCCESS;

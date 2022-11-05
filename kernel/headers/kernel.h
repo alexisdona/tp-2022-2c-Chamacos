@@ -12,6 +12,7 @@ uint32_t INTERRUPCIONES_HABILITADAS;
 uint32_t ultimo_pid;
 uint32_t quantum;
 uint32_t* tiempos_bloqueos;
+estado_pcb ready_anterior_pcb_running;
 op_code motivo_bloqueo;
 char* algoritmo_planificacion;
 char** lista_dispositivos;
