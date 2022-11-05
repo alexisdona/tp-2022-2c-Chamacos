@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[]) {
 
-    ultimo_pid=0;
+    ultimo_pid=1;
     INTERRUPCIONES_HABILITADAS = 1;
 
     validar_argumentos_main(argc);
@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
-    char** lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
+    lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
     
     tiempos_bloqueos = malloc(string_array_size(lista_bloqueos)*sizeof(uint32_t));
@@ -170,6 +170,9 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case INTERRUPCION:
+                pthread_mutex_lock(&mutex_logger);
+                log_info(logger,string_from_format(GRN"PID: <%d> - Desalojado por Fin de Quantum"WHT,pcb->pid));
+                pthread_mutex_unlock(&mutex_logger);
                 agregar_a_ready(pcb,INTERRUPCION,RUNNING);
                 break;
 
@@ -534,6 +537,7 @@ void agregar_a_ready(t_pcb* pcb, op_code motivo, estado_pcb anterior){
         logear_cambio_estado(pcb,anterior,READY1);
         agregar_pcb_a_cola(pcb,mutex_ready1,ready1_queue);
     }
+
     sem_post(&pcbs_en_ready);
 }
 
