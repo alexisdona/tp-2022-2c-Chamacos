@@ -14,6 +14,7 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
+    char** lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
 
     tiempos_bloqueos = malloc(string_array_size(lista_bloqueos)*sizeof(uint32_t));
@@ -130,7 +131,7 @@ void* conexion_dispatch(void* socket){
 
         switch(codigo_operacion){
             case BLOQUEAR_PROCESO_IO:
-                pthread_cancel(thread_clock);
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 motivo_bloqueo = codigo_operacion;
                 agregar_pcb_a_cola(pcb,mutex_blocked_io,blocked_io_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_IO);
@@ -138,7 +139,7 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case BLOQUEAR_PROCESO_TECLADO:
-                pthread_cancel(thread_clock);
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 motivo_bloqueo = codigo_operacion;
                 agregar_pcb_a_cola(pcb,mutex_blocked_keyboard,blocked_keyboard_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_TECLADO);
@@ -146,7 +147,7 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case BLOQUEAR_PROCESO_PANTALLA:
-                pthread_cancel(thread_clock);
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 motivo_bloqueo = codigo_operacion;
                 agregar_pcb_a_cola(pcb,mutex_blocked_screen,blocked_screen_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_PANTALLA);
@@ -154,7 +155,7 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case PAGE_FAULT:
-                pthread_cancel(thread_clock);
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 motivo_bloqueo = codigo_operacion;
                 agregar_pcb_a_cola(pcb,mutex_blocked_page_fault,blocked_page_fault_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_PAGE_FAULT);
@@ -162,7 +163,7 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case FINALIZAR_PROCESO:
-                pthread_cancel(thread_clock);
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 agregar_pcb_a_cola(pcb,mutex_exit,exit_queue);
                 logear_cambio_estado(pcb,RUNNING,EXIT_S);
                 sem_post(&finish_process);
@@ -181,6 +182,7 @@ void* conexion_dispatch(void* socket){
         }
         sem_post(&cpu_libre);
     }
+    return EXIT_SUCCESS;
 }
 
 void* conexion_interrupt(void* socket){
@@ -197,6 +199,7 @@ void* conexion_interrupt(void* socket){
             pthread_detach(thread_clock);
         }
     }
+    return EXIT_SUCCESS;
 }
 
 void* clock_interrupt(void* socket){
@@ -212,6 +215,7 @@ void* clock_interrupt(void* socket){
         pthread_mutex_unlock(&mutex_logger);
         enviar_interrupcion(socket_interrupt);
     }
+    return EXIT_SUCCESS;
 }
 
 void *conexion_memoria(void* socket){
@@ -219,6 +223,7 @@ void *conexion_memoria(void* socket){
     while(socket_memoria != -1){
         op_code codigo_operacion = recibir_operacion(socket_memoria);
     }
+    return EXIT_SUCCESS;
 }
 
 void *conexion_consola(void* socket){
@@ -239,7 +244,7 @@ void *conexion_consola(void* socket){
                 t_list* segmentos = recibir_lista_segmentos(socket_consola);
 
                 pthread_mutex_lock(&mutex_pid);
-                t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos);
+                t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos, socket_consola);
                 pthread_mutex_unlock(&mutex_pid);
                 agregar_pcb_a_cola(pcb, mutex_new, new_queue);
                 pthread_mutex_lock(&mutex_logger);
@@ -247,6 +252,23 @@ void *conexion_consola(void* socket){
                 pthread_mutex_unlock(&mutex_logger);
                 sem_post(&new_to_ready);
                 break;
+
+			case INPUT_VALOR:
+				input_consola = recibir_valor(socket_consola);
+				pthread_mutex_lock(&mutex_logger);
+				log_info(logger,string_from_format(BLU"Conexion Consola: Valor recibido de consola: %d"BLU,input_consola));
+				pthread_mutex_unlock(&mutex_logger);
+                sem_post(&desbloquear_teclado);
+				break;
+
+            case IMPRIMIR_VALOR:
+                log_info(logger,BLU"Conexion Consola: Valor impreso."WHT);
+                sem_post(&desbloquear_pantalla);
+                break;
+
+            case -1:
+                return EXIT_SUCCESS;
+
             default:
                 pthread_mutex_lock(&mutex_logger);
                 log_warning(logger,"Conexion Consola -> Recibio una operacion incorrecta");
@@ -255,19 +277,21 @@ void *conexion_consola(void* socket){
                 exit(EXIT_FAILURE);
         }
     }
+    return EXIT_SUCCESS;
 }
 
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos) {
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos, uint32_t socket_consola) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = ultimo_pid;
-    pcb->registros_pcb.registro_ax=0;
-    pcb->registros_pcb.registro_bx=0;
-    pcb->registros_pcb.registro_cx=0;
-    pcb->registros_pcb.registro_dx=0;
+    pcb->registros_pcb->registro_ax=0;
+    pcb->registros_pcb->registro_bx=0;
+    pcb->registros_pcb->registro_cx=0;
+    pcb->registros_pcb->registro_dx=0;
     pcb->tabla_segmentos = tabla_segmentos;
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
+    pcb->socket_consola = socket_consola;
     ultimo_pid++;
 
     return pcb;
@@ -329,7 +353,9 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&redirigir_proceso_bloqueado,0,0);
     sem_init(&bloquear_por_io,0,0);
     sem_init(&bloquear_por_pantalla,0,0);
+    sem_init(&desbloquear_pantalla,0,0);
     sem_init(&bloquear_por_teclado,0,0);
+    sem_init(&desbloquear_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
 }
 
@@ -358,6 +384,7 @@ void* planificador_largo_plazo(void* x){
     pthread_create(&process_terminator_thread, NULL, finalizador_procesos, NULL);
     pcb_a_dispatcher();
     pthread_join(process_terminator_thread,NULL);
+    return EXIT_SUCCESS;
 }
 
 void pcb_a_dispatcher(){
@@ -376,10 +403,13 @@ void* finalizador_procesos(void* x){
         sem_wait(&finish_process);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_exit,exit_queue);
 
+        log_info(logger,BLU"Conexion Consola: Finalizar consola"WHT);
+        enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
+        sem_post(&grado_multiprogramacion);
         free(pcb);
         //Avisar a memoria
-        //Avisar a consola
     }
+    return EXIT_SUCCESS;
 }
 
 void* planificador_corto_plazo(void* x){
@@ -400,6 +430,7 @@ void* planificador_corto_plazo(void* x){
 
     pthread_join(ready_thread,NULL);
 
+    return EXIT_SUCCESS;
 }
 
 void* manejador_estado_ready(void* x){
@@ -412,6 +443,7 @@ void* manejador_estado_ready(void* x){
         logear_cambio_estado(pcb,ready_anterior,RUNNING);
         sem_post(&enviar_pcb_a_cpu);
     }
+    return EXIT_SUCCESS;
 }
 
 void* manejador_estado_blocked_pf(void* x){
@@ -434,22 +466,65 @@ void* manejador_estado_blocked_io(void* x){
         usleep(tiempo_bloqueado);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_IO,BLOQUEADO_IO);
     }
+    return EXIT_SUCCESS;
 }
 
 void* manejador_estado_blocked_screen(void* x){
-        sem_wait(&bloquear_por_pantalla);
+    t_pcb* pcb;
 
+    while(1){
+        sem_wait(&bloquear_por_pantalla);
+        pcb = quitar_pcb_de_cola(mutex_blocked_screen,blocked_screen_queue);
+        pthread_mutex_lock(&mutex_logger);
+        log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <PANTALLA>"WHT,pcb->pid));
+        pthread_mutex_unlock(&mutex_logger);
+        uint32_t valor_a_imprimir = *obtener_registro_por_bloqueo_pantalla_teclado(pcb);
+        log_info(logger,BLU"Conexion Consola: Solicitud de imprimir valor."WHT);
+        enviar_imprimir_valor(valor_a_imprimir,pcb->socket_consola);
+        sem_wait(&desbloquear_pantalla);
+        agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
+    }
 }
 
 void* manejador_estado_blocked_keyboard(void* x){
-        sem_wait(&bloquear_por_teclado);
+    t_pcb* pcb;
 
+    while(1){
+        sem_wait(&bloquear_por_teclado);
+        pcb = quitar_pcb_de_cola(mutex_blocked_keyboard,blocked_keyboard_queue);
+        pthread_mutex_lock(&mutex_logger);
+        log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <TECLADO>"WHT,pcb->pid));
+        pthread_mutex_unlock(&mutex_logger);
+        log_info(logger,BLU"Conexion Consola: Solicitud de valor."WHT);
+        enviar_codigo_op(pcb->socket_consola,INPUT_VALOR);
+        sem_wait(&desbloquear_teclado);
+        actualizar_registro_por_teclado(pcb,input_consola);
+        agregar_a_ready(pcb,BLOQUEAR_PROCESO_TECLADO,BLOQUEADO_TECLADO);
+    }
 }
 
 void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t* tiempo_bloqueo){
-    t_instruccion* instruccion_anterior = list_get(pcb->lista_instrucciones,pcb->program_counter-1);
+    t_instruccion* instruccion_anterior = obtener_instruccion_anterior(pcb);
     *disp = instruccion_anterior->parametros[0];
     *tiempo_bloqueo = tiempos_bloqueos[*disp] * instruccion_anterior->parametros[1] * 1000;
+}
+
+registro_cpu* obtener_registro_por_bloqueo_pantalla_teclado(t_pcb* pcb){
+    t_instruccion* instruccion_anterior = obtener_instruccion_anterior(pcb);
+    registro_cpu registro = instruccion_anterior->parametros[1];
+    return obtener_registro(pcb, registro);
+}
+
+void actualizar_registro_por_teclado(t_pcb* pcb,uint32_t input){
+    registro_cpu* registro_pcb = obtener_registro_por_bloqueo_pantalla_teclado(pcb);
+    (*registro_pcb) = input;
+    input=0;
+}
+
+
+t_instruccion* obtener_instruccion_anterior(t_pcb* pcb){
+    t_instruccion* instruccion_anterior = list_get(pcb->lista_instrucciones,pcb->program_counter-1);
+    return instruccion_anterior;
 }
 
 void agregar_a_ready(t_pcb* pcb, op_code motivo, estado_pcb anterior){
@@ -476,6 +551,7 @@ t_pcb* quitar_de_ready(estado_pcb* ready){
     pthread_mutex_lock(&mutex_logger);
     log_error(logger,"Se intento quitar un pcb de alguna cola de READY pero ambas estan vacias");
     pthread_mutex_unlock(&mutex_logger);
+    return EXIT_SUCCESS;
 }
 
 int algoritmo_es_feedback(){
@@ -503,23 +579,3 @@ char* traducir_estado_pcb(estado_pcb estado){
         default:                    return "ERROR - NOMBRE ESTADO INADECUADO";
     }
 }
-/*
-void crear_estructuras_memoria(t_pcb* pcb) {
-    printf(GRN"\n");
-    log_info(logger,"### CREANDO ESTRUCTURAS DE MEMORIA###");
-    int pcb_actualizado = 0;
-    enviar_PCB(socket_memoria, pcb, CREAR_ESTRUCTURAS_ADMIN );
-    while(conexion_memoria != -1 && pcb_actualizado == 0) {
-        op_code cod_op = recibir_operacion(socket_memoria);
-        switch(cod_op) {
-            case ACTUALIZAR_INDICE_TABLA_PAGINAS:
-                ;
-                t_pcb *pcb_aux = recibir_PCB(socket_memoria);
-                pcb->tabla_segmentos = pcb_aux->tabla_segmentos;
-                pcb_actualizado = 1;
-                break;
-
-            default: ;
-        }
-    }
-}*/

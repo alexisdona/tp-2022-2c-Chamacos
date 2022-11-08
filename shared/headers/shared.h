@@ -38,11 +38,14 @@
 #define CPU_INTERRUPT   3
 #define MEMORIA         4
 
+#define PANTALLA        100
+#define TECLADO         200
 
 #define CONNECTION_FILE "../connection.config"
 
 extern char* LOG_FILE;
 extern char* LOG_NAME;
+extern char** lista_dispositivos;
 
 typedef uint32_t operando;
 typedef enum
@@ -62,12 +65,16 @@ typedef enum{
     DX
 } registro_cpu;
 
+/*
 typedef enum{
     DISCO,
     IMPRESORA,
     PANTALLA,
     TECLADO
 } dispositivo;
+*/
+
+typedef uint32_t dispositivo;
 
 typedef struct{
     instr_code codigo_operacion;
@@ -77,6 +84,8 @@ typedef struct{
 
 typedef enum {
     MENSAJE,
+	IMPRIMIR_VALOR,
+	INPUT_VALOR,
     LISTA_INSTRUCCIONES_SEGMENTOS,
     PCB,
     INTERRUPCION,
@@ -123,6 +132,7 @@ void logear_instruccion(t_log* logger, t_instruccion* instrucicon);
 char* traducir_instruccion_string(t_instruccion* instruccion);
 char* traducir_registro_cpu(registro_cpu registro);
 char* traducir_dispositivo(dispositivo disp);
+registro_cpu* obtener_registro(t_pcb* pcb, registro_cpu registro);
 
 //Comunicacion===============================================
 
@@ -190,10 +200,20 @@ op_code recibir_operacion(int socket_cliente);
 void* recibir_buffer(int socket_cliente);
 
 void enviar_mensaje(char* mensaje, int socket);
-void recibir_mensaje(int socket_cliente, t_log* logger);
+void recibir_mensaje(int socket_cliente, t_log *logger);
+
 t_list* recibir_lista_instrucciones(int socket);
 t_list* recibir_lista_segmentos(int socket);
+
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
+
+void enviar_imprimir_valor(uint32_t numero, int socket);
+uint32_t recibir_valor(int socket);
+uint32_t deserializar_entero(void* stream);
+void enviar_esperar_input_valor(int socket);
+void enviar_input_valor(uint32_t valor, int socket);
+void enviar_codigo_op(int socket, op_code codigo);
+
 //Agrega una instruccion al paquete
 void agregar_instruccion(t_paquete* paquete, void* instruccion);
 void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion);

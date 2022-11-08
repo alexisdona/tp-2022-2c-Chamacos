@@ -355,10 +355,10 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
 
     agregar_entero(paquete, pcb->pid);
     agregar_entero(paquete, pcb->program_counter);
-    agregar_entero(paquete, pcb->registros_pcb.registro_ax);
-    agregar_entero(paquete, pcb->registros_pcb.registro_bx);
-    agregar_entero(paquete, pcb->registros_pcb.registro_cx);
-    agregar_entero(paquete, pcb->registros_pcb.registro_dx);
+    agregar_entero(paquete, pcb->registros_pcb->registro_ax);
+    agregar_entero(paquete, pcb->registros_pcb->registro_bx);
+    agregar_entero(paquete, pcb->registros_pcb->registro_cx);
+    agregar_entero(paquete, pcb->registros_pcb->registro_dx);
     agregar_lista_instrucciones(paquete, pcb->lista_instrucciones);
     agregar_tabla_segmentos(paquete, pcb->tabla_segmentos);
 
@@ -386,16 +386,16 @@ t_pcb* recibir_PCB(int socket_desde){
     pcb->program_counter = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb.registro_ax = auxiliar;
+    pcb->registros_pcb->registro_ax = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb.registro_bx = auxiliar;
+    pcb->registros_pcb->registro_bx = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb.registro_cx = auxiliar;
+    pcb->registros_pcb->registro_cx = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb.registro_dx = auxiliar;
+    pcb->registros_pcb->registro_dx = auxiliar;
 
     //recibo primero la cantidad de elementos de la lista de instrucciones
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
@@ -414,10 +414,45 @@ t_pcb* recibir_PCB(int socket_desde){
     tabla_segmentos = deserializar_lista_segmentos(buffer, tamanio_tabla_segmentos);
     pcb->tabla_segmentos = tabla_segmentos;
 
+    recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
+    pcb->socket_consola = auxiliar;
+
     return pcb;
 }
 
 void enviar_interrupcion(int socket){
-    op_code codigo = INTERRUPCION;
+    enviar_codigo_op(socket,INTERRUPCION);
+}
+
+void enviar_codigo_op(int socket, op_code codigo){
     send(socket,&codigo,sizeof(op_code),0);
+}
+
+void enviar_imprimir_valor(uint32_t numero, int socket){
+	op_code codigo = IMPRIMIR_VALOR;
+	t_paquete* paquete = crear_paquete();
+	paquete->codigo_operacion = codigo;
+	agregar_entero(paquete, numero);
+	enviar_paquete(paquete, socket);
+	eliminar_paquete(paquete);
+}
+
+uint32_t deserializar_entero(void* stream){
+	uint32_t numero;
+	memcpy(&numero, stream, sizeof(uint32_t));
+	return numero;
+}
+
+uint32_t recibir_valor(int socket){
+	uint32_t* numero = recibir_buffer(socket);
+	return *numero;
+}
+
+void enviar_input_valor(uint32_t valor, int socket){
+	op_code codigo = INPUT_VALOR;
+	t_paquete* paquete = crear_paquete();
+	paquete->codigo_operacion = codigo;
+	agregar_entero(paquete, valor);
+	enviar_paquete(paquete, socket);
+	eliminar_paquete(paquete);
 }

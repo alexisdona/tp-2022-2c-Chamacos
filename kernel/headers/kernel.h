@@ -6,6 +6,7 @@
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
 
+uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
 uint32_t ultimo_pid;
@@ -13,6 +14,7 @@ uint32_t quantum;
 uint32_t* tiempos_bloqueos;
 op_code motivo_bloqueo;
 char* algoritmo_planificacion;
+char** lista_dispositivos;
 
 t_config* kernel_config;
 t_config* communication_config;
@@ -25,7 +27,7 @@ pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
 pthread_t thread_clock;
 
-int socket_cpu_dispatch, socket_memoria;
+int socket_cpu_dispatch;
 
 //Semaforos de sincronizacion
 sem_t grado_multiprogramacion;
@@ -39,7 +41,9 @@ sem_t enviar_pcb_a_cpu;
 sem_t redirigir_proceso_bloqueado;
 sem_t bloquear_por_io;
 sem_t bloquear_por_pantalla;
+sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
+sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
 
 //Mutex para proteger las colas
@@ -87,7 +91,7 @@ void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos, uint32_t socket_consola);
 
 // Funciones de planificacion ===============================
 
@@ -128,6 +132,10 @@ t_pcb* quitar_de_ready(estado_pcb* cola_ready);
 int algoritmo_es_feedback();
 void logear_cambio_estado(t_pcb* pcb,estado_pcb anterior, estado_pcb actual);
 char* traducir_estado_pcb(estado_pcb);
+
+registro_cpu* obtener_registro_por_bloqueo_pantalla_teclado(t_pcb* pcb);
+t_instruccion* obtener_instruccion_anterior(t_pcb* pcb);
+void actualizar_registro_por_teclado(t_pcb* pcb, uint32_t input);
 
 void crear_estructuras_memoria(t_pcb* pcb);
 

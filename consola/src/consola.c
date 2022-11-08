@@ -12,6 +12,12 @@ int main(int argc, char* argv[]) {
     consola_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
+    lista_dispositivos = config_get_array_value(consola_config,"DISPOSITIVOS_IO");
+
+    for(int i=0; i<string_array_size(lista_dispositivos); i++){
+        printf("Disp: %s\n",lista_dispositivos[i]);
+    }
+
     FILE* archivo_pseudocodigo = fopen(archivo,"r");
 	t_list* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
 
@@ -19,25 +25,52 @@ int main(int argc, char* argv[]) {
     int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
     int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
-    uint32_t respuesta = enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
+    enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* tabla_segmentos = convertir_segmentos(segmentos_config);
 
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, tabla_segmentos);
     log_info(logger,"Envie lista de instrucciones y tabla_segmentos");
+
+
+	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_DE_RESPUESTA");
+    log_info(logger,string_from_format("Retardo de impresion: %ds",tiempo_respuesta/1000));
+
+    enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, tabla_segmentos);
+    log_info(logger,"Envie lista de instrucciones y segmentos");
     list_destroy(instrucciones);
     list_destroy(tabla_segmentos);
 
 
     while(socket_kernel!=-1){
 
+        printf("\n");
+        log_info(logger, "Esperando instrucciones.");
         op_code cod_op = recibir_operacion(socket_kernel);
         switch (cod_op) {
             case MENSAJE:
                 recibir_mensaje(socket_kernel, logger);
                 break;
-            default:
+            case IMPRIMIR_VALOR:
+				log_info(logger, BLU"Kernel envió un valor para imprimir"WHT);
+				uint32_t valor = recibir_valor(socket_kernel);
+				log_info(logger, string_from_format(CYN"Valor recibido: %d"WHT, valor));
+				usleep(tiempo_respuesta*1000);
+                enviar_codigo_op(socket_kernel,IMPRIMIR_VALOR);
+				break;
+			case INPUT_VALOR:
+				log_info(logger, BLU"Kernel solicitó un valor"WHT);
+				printf("Ingrese un valor: ");
+				uint32_t input;
+				scanf("%d", &input);
+                log_info(logger,BLU"Valor enviado al kernel."WHT);
+				enviar_input_valor(input, socket_kernel);
+				break;
+            case FINALIZAR_PROCESO:
+                terminar_programa(socket_kernel,logger,communication_config);
+                return EXIT_SUCCESS;
+			default:
                 log_trace(logger, "Operación desconocida en consola");
                 terminar_programa(socket_kernel, logger, communication_config);
                 break;
@@ -99,7 +132,12 @@ t_instruccion* generar_instruccion(char* registro){
             break;
         case IO:
             instruccion->parametros[0]=obtener_dispositivo(operando1);
-            instruccion->parametros[1]=atoi(operando2);
+            /*if(string_equals_ignore_case(operando1,"PANTALLA") || string_equals_ignore_case(operando1,"TECLADO")){*/
+            if(instruccion->parametros[0] == PANTALLA || instruccion->parametros[0] == TECLADO){
+                instruccion->parametros[1]=obtener_registro_cpu(operando2);
+            }else{
+                instruccion->parametros[1]=atoi(operando2);
+            }
             break;
         case EXIT: default:
             instruccion->parametros[0]=0;
@@ -114,7 +152,7 @@ instr_code obtener_cop(char* operacion){
 	else if (string_contains(operacion,"ADD")) 	    return ADD;
 	else if (string_contains(operacion,"MOV_IN")) 	return MOV_IN;
 	else if (string_contains(operacion,"MOV_OUT")) 	return MOV_OUT;
-	else if (string_contains(operacion,"I/O"))       return IO;
+	else if (string_contains(operacion,"I/O"))      return IO;
 	else                                            return EXIT;
 }
 
@@ -124,10 +162,26 @@ registro_cpu obtener_registro_cpu(char* registro){
     else if(string_contains(registro,"CX")) return CX;
     else                                    return DX;
 }
+/*
+dispositivo obtener_dispositivo(char* dispositivo){
+    if (string_contains(dispositivo,"DISCO"))           return DISCO;
+    else if(string_contains(dispositivo,"IMPRESORA"))   return IMPRESORA;
+    else if(string_contains(dispositivo,"PANTALLA"))    return PANTALLA;
+    else                                                return TECLADO;
+}
+*/
 
 dispositivo obtener_dispositivo(char* dispositivo){
-    if (string_contains(dispositivo,"DISCO")) return DISCO;
-    else                                     return IMPRESORA;
+    for(uint32_t i=0; i < string_array_size(lista_dispositivos); i++){
+        if(string_equals_ignore_case(dispositivo,lista_dispositivos[i])){
+            return i;
+        }
+    }
+    if(string_equals_ignore_case(dispositivo,"PANTALLA")) {
+        return PANTALLA;
+    }else{
+        if(string_equals_ignore_case(dispositivo,"TECLADO")) return TECLADO;
+    }
 }
 
 t_list* convertir_segmentos(char** segmentos_config){

@@ -18,9 +18,10 @@ typedef struct {
 typedef struct {
   uint32_t pid;
   uint32_t program_counter;
-  t_registros_pcb registros_pcb;
+  t_registros_pcb* registros_pcb;
   t_list* lista_instrucciones;
   t_list* tabla_segmentos;
+  uint32_t socket_consola;
 } t_pcb;
 
 
