@@ -11,6 +11,35 @@ LINK PRUEBAS:
 
 ---
 
+## CHECKPOINT #4 AVANCE DEL GRUPO: VIRTUAL
+
+_FECHA: 19/11/2022_
+
+### Objetivos 📌
+```
+Módulo Kernel (completo):
+* Implementa circuito de Page Fault
+
+Módulo CPU (completo):
+* Implementa TLB
+* Implementa instrucciones MOV_IN, MOV_OUT
+
+Módulo Memoria:
+* Implementa tabla de Páginas
+* Responde los mensajes de la CPU y Kernel con datos reales
+* Respuesta Page Fault de manera genérica sin acciones
+```
+
+### Documentacion 📖
+```
+* Sistemas Operativos, Silberschatz, Galvin 7ma Ed. - Capítulo 8: Memoria principal
+* Sistemas Operativos, Stallings, William 5ta Ed. - Parte VII: Memoria virtual (Cap. 8)
+* Sistemas Operativos, Silberschatz, Galvin 7ma Ed. - Capítulo 9: Memoria virtual
+* Tutorial de Valgrind - https://docs.utnso.com.ar/guias/herramientas/valgrind
+```
+
+---
+
 ## CHECKPOINT #3 OBLIGATORIO: PRESENCIAL
 
 _FECHA: 05/11/2022_
