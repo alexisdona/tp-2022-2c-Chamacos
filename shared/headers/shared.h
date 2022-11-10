@@ -97,7 +97,11 @@ typedef enum {
     DESALOJAR_PROCESO,
     FINALIZAR_PROCESO,
     ACTUALIZAR_INDICE_TABLA_PAGINAS,
-    CREAR_ESTRUCTURAS_ADMIN
+    CREAR_ESTRUCTURAS_ADMIN,
+    ESCRIBIR_MEMORIA,
+    LEER_MEMORIA,
+    OBTENER_MARCO,
+    TERMINAR_PROCESO
 } op_code;
 
 typedef struct{
@@ -109,6 +113,12 @@ typedef struct{
     op_code codigo_operacion;
     t_buffer* buffer;
 } t_paquete;
+
+typedef struct {
+    t_log* log;
+    int fd;
+    char* nombre;
+} t_procesar_conexion_attrs;
 
 
 //Funciones comunes a los modulos ===========================

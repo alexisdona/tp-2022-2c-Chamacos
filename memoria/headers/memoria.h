@@ -25,6 +25,8 @@ t_config* communication_config;
 t_log* logger;
 void* espacio_usuario_memoria;
 char** lista_dispositivos;
+char* CONFIG_FILE;
+int socket_srv_memoria;
 uint32_t tamanio_memoria;
 uint32_t tamanio_pagina;
 uint32_t  entradas_por_tabla;
@@ -46,4 +48,8 @@ void crear_espacio_usuario();
 uint32_t obtener_ultima_posicion_swap();
 void crear_archivo_swap();
 void mostrar_contenido_archivo_swap();
+void levantar_config();
+void procesar_conexion(void* void_args);
+int escuchar_cliente(int socket_server, t_log* logger);
+
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

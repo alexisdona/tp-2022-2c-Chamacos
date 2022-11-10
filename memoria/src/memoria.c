@@ -5,22 +5,26 @@
 int main(int argc, char* argv[]){
 
     validar_argumentos_main(argc);
-	
-	char* CONFIG_FILE = argv[1];
-
+    CONFIG_FILE = argv[1];
     logger = iniciar_logger(LOG_FILE, LOG_NAME);
+    levantar_config();
+	//Levanto el servidor de memoria
+    socket_srv_memoria = levantar_servidor();
+    iniciar_estructuras_administrativas_kernel();
+    crear_archivo_swap();
+    //mostrar_contenido_archivo_swap();
+    crear_espacio_usuario();
+
+    while (1) {
+        escuchar_cliente(socket_srv_memoria, logger); //CPU
+        escuchar_cliente(socket_srv_memoria, logger); //KERNEL
+    }
+
+}
+
+void levantar_config() {
     memoria_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
-
-	//Levanto el servidor de memoria
-    int socket_srv_memoria = levantar_servidor();
-    //Espero la conexion de la cpu
-    log_info(logger,"Esperando CPU..");
-
-
-	char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
-	int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
-
     tamanio_memoria = config_get_int_value(memoria_config,"TAM_MEMORIA");
     tamanio_pagina = config_get_int_value(memoria_config,"TAM_PAGINA");
     entradas_por_tabla = config_get_int_value(memoria_config,"ENTRADAS_POR_TABLA");
@@ -28,18 +32,6 @@ int main(int argc, char* argv[]){
     algoritmo_reemplazo = config_get_string_value(memoria_config, "ALGORITMO_REEMPLAZO");
     tamanio_swap = config_get_int_value(memoria_config,"TAMANIO_SWAP");
     path_swap = config_get_string_value(memoria_config, "PATH_SWAP");
-    iniciar_estructuras_administrativas_kernel();
-    crear_archivo_swap();
-    //mostrar_contenido_archivo_swap();
-    crear_espacio_usuario();
-	int socket_kernel = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
-    int socket_cliente = esperar_cliente(socket_srv_memoria,logger);
-    uint32_t modulo = recibir_handshake_inicial(socket_cliente,MEMORIA,logger);
-    uint32_t respuesta = enviar_handshake_inicial(socket_kernel,MEMORIA,logger);
-    while(socket_kernel != -1){
-        op_code codigo_operacion = recibir_operacion(socket_kernel);
-    }
-
 }
 
 void validar_argumentos_main(int argumentos){
@@ -110,11 +102,9 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento ) {
 uint32_t obtener_ultima_posicion_swap() {
     uint32_t ultima_posicion_swap = 64;
     return ultima_posicion_swap;
-
 }
 
 void crear_archivo_swap() {
-
     void *str = malloc(tamanio_swap);
     uint32_t cantidad_bloques = tamanio_swap/tamanio_pagina;
     uint32_t valor = 0;
@@ -142,10 +132,7 @@ void crear_archivo_swap() {
 }
 
 void mostrar_contenido_archivo_swap() {
-
-
     int archivo_swap = open(path_swap, O_RDWR);
-
     struct stat sb;
     if (fstat(archivo_swap,&sb) == -1) {
         perror("No se pudo obtener el size del archivo swap: ");
@@ -162,4 +149,50 @@ void mostrar_contenido_archivo_swap() {
     }
 }
 
+int escuchar_cliente(int socket_server, t_log* logger) {
+    int cliente = esperar_cliente(socket_server, logger);
+    if (cliente != -1) {
+        pthread_t hilo;
+        t_procesar_conexion_attrs* attrs = malloc(sizeof(t_procesar_conexion_attrs));
+        attrs->log = logger;
+        attrs->fd = cliente;
+        pthread_create(&hilo, NULL, (void*) procesar_conexion, (void*) attrs);
+        pthread_detach(hilo);
+        return 1;
+    }
+    return 0;
+}
 
+void procesar_conexion(void* void_args) {
+    printf("se conecta un cliente.\n");
+    t_procesar_conexion_attrs* attrs = (t_procesar_conexion_attrs*) void_args;
+    t_log* logger = attrs->log;
+    int cliente_fd = attrs->fd;
+    free(attrs);
+
+    while(cliente_fd != -1) {
+        op_code cod_op = recibir_operacion(cliente_fd);
+        switch (cod_op) {
+            case MENSAJE:
+                recibir_mensaje(cliente_fd, logger);
+                break;
+            case ESCRIBIR_MEMORIA:
+                break;
+            case LEER_MEMORIA:
+                break;
+            case CREAR_ESTRUCTURAS_ADMIN:
+                break;
+            case OBTENER_MARCO:
+                break;
+            case TERMINAR_PROCESO:
+            case -1:
+                log_info(logger, "El cliente se desconectó");
+                cliente_fd = -1;
+                break;
+            default:
+                printf(RED"codigo operacion %d"RESET,cod_op);
+                log_warning(logger, "Operacion desconocida.");
+                break;
+        }
+    }
+}
