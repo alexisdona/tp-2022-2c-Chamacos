@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[]) {
 
-    ultimo_pid=0;
+    ultimo_pid=1;
     INTERRUPCIONES_HABILITADAS = 1;
 
     validar_argumentos_main(argc);
@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     communication_config = init_connection_config();
 
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
-    char** lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
+    lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
 
     tiempos_bloqueos = malloc(string_array_size(lista_bloqueos)*sizeof(uint32_t));
@@ -116,7 +116,8 @@ void* conexion_dispatch(void* socket){
         log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
         hay_proceso_ejecutando=1;
-        sem_post(&continuar_conteo_quantum);
+
+        if(algoritmo_planificacion_tiene_desalojo() && ready_anterior_pcb_running==READY1) sem_post(&continuar_conteo_quantum);
 
         if(algoritmo_planificacion_tiene_desalojo() && interrupciones_iniciadas == INTERRUPCIONES_HABILITADAS){
             interrupciones_iniciadas--;
@@ -170,6 +171,9 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case INTERRUPCION:
+                pthread_mutex_lock(&mutex_logger);
+                log_info(logger,string_from_format(GRN"PID: <%d> - Desalojado por Fin de Quantum"WHT,pcb->pid));
+                pthread_mutex_unlock(&mutex_logger);
                 agregar_a_ready(pcb,INTERRUPCION,RUNNING);
                 break;
 
@@ -310,9 +314,9 @@ void iniciar_planificacion(){
 
     new_queue = queue_create();
     exit_queue = queue_create();
-    ready1_queue = queue_create();
+    ready1_queue = list_create();
     if(string_contains(algoritmo_planificacion,"FEEDBACK")){
-        ready2_queue = queue_create();
+        ready2_queue = list_create();
     }
     blocked_screen_queue = queue_create();
     blocked_keyboard_queue = queue_create();
@@ -368,6 +372,19 @@ void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t mutex, t_queue* cola){
     pthread_mutex_lock(&mutex);
     t_pcb* pcb = queue_pop(cola);
+    pthread_mutex_unlock(&mutex);
+    return pcb;
+}
+
+void agregar_pcb_a_lista(t_pcb* pcb,pthread_mutex_t mutex, t_list* cola){
+    pthread_mutex_lock(&mutex);
+    list_add(cola,pcb);
+    pthread_mutex_unlock(&mutex);
+}
+
+t_pcb* quitar_pcb_de_lista(pthread_mutex_t mutex, t_list* cola){
+    pthread_mutex_lock(&mutex);
+    t_pcb* pcb = list_remove(cola,0);
     pthread_mutex_unlock(&mutex);
     return pcb;
 }
@@ -441,6 +458,7 @@ void* manejador_estado_ready(void* x){
         t_pcb* pcb = quitar_de_ready(&ready_anterior);
         agregar_pcb_a_cola(pcb,mutex_running,running_queue);
         logear_cambio_estado(pcb,ready_anterior,RUNNING);
+        ready_anterior_pcb_running = ready_anterior;
         sem_post(&enviar_pcb_a_cpu);
     }
     return EXIT_SUCCESS;
@@ -530,22 +548,40 @@ t_instruccion* obtener_instruccion_anterior(t_pcb* pcb){
 void agregar_a_ready(t_pcb* pcb, op_code motivo, estado_pcb anterior){
     if(algoritmo_es_feedback() && motivo == INTERRUPCION){
         logear_cambio_estado(pcb,anterior,READY2);
-        agregar_pcb_a_cola(pcb,mutex_ready2,ready2_queue);
+        agregar_pcb_a_lista(pcb,mutex_ready2,ready2_queue);
+        /*if(list_is_empty(ready1_queue)) pthread_cancel(thread_clock);*/
     }else{
         logear_cambio_estado(pcb,anterior,READY1);
-        agregar_pcb_a_cola(pcb,mutex_ready1,ready1_queue);
+        agregar_pcb_a_lista(pcb,mutex_ready1,ready1_queue);
     }
+
+    printf(GRN"Cola de Ready1 <%s>: [ ",algoritmo_planificacion);
+    for(uint32_t i=0; i < list_size(ready1_queue); i++){
+        uint32_t pid = ((t_pcb*) list_get(ready1_queue,i))->pid;
+        printf("<%d> ",pid);
+    }
+    printf("]\n"WHT);
+
+    if(algoritmo_es_feedback()){
+        printf(GRN"Cola de Ready2 <%s>: [ ",algoritmo_planificacion);
+        for(uint32_t i=0; i < list_size(ready2_queue); i++){
+            uint32_t pid = ((t_pcb*) list_get(ready2_queue,i))->pid;
+            printf("<%d> ",pid);
+        }
+        printf("]\n"WHT);
+    }
+
     sem_post(&pcbs_en_ready);
 }
 
 t_pcb* quitar_de_ready(estado_pcb* ready){
-    if(!queue_is_empty(ready1_queue)){
+    if(!list_is_empty(ready1_queue)){
         *ready = READY1;
-        return quitar_pcb_de_cola(mutex_ready1,ready1_queue);
+        return quitar_pcb_de_lista(mutex_ready1,ready1_queue);
     }else{
-        if(algoritmo_es_feedback() && !queue_is_empty(ready2_queue)){
+        if(algoritmo_es_feedback() && !list_is_empty(ready2_queue)){
             *ready = READY2;
-            return quitar_pcb_de_cola(mutex_ready2,ready2_queue);
+            return quitar_pcb_de_lista(mutex_ready2,ready2_queue);
         }
     }
     pthread_mutex_lock(&mutex_logger);

@@ -1,10 +1,42 @@
 # tp-2022-2c-ChamacOS
 
-LINK REPOSITORIO:  
+LINK REPOSITORIO:
 [https://github.com/sisoputnfrba/tp-2022-2c-ChamacOS] 
 
-LINK ENUNCIADO:  
-[https://docs.google.com/document/d/1xYmkJXRRddM51fQZfxr3CEuhNtFCWe5YU7hhvsUnTtg/edit]  
+LINK ENUNCIADO:
+[https://docs.google.com/document/d/1xYmkJXRRddM51fQZfxr3CEuhNtFCWe5YU7hhvsUnTtg/edit]
+
+LINK PRUEBAS:
+[https://docs.google.com/document/d/1qxF4h9dkL5L6X6P8qts997wTC1qLxIg6ElZzlU1Xgi4/edit]
+
+---
+
+## CHECKPOINT #4 AVANCE DEL GRUPO: VIRTUAL
+
+_FECHA: 19/11/2022_
+
+### Objetivos 📌
+```
+Módulo Kernel (completo):
+* Implementa circuito de Page Fault
+
+Módulo CPU (completo):
+* Implementa TLB
+* Implementa instrucciones MOV_IN, MOV_OUT
+
+Módulo Memoria:
+* Implementa tabla de Páginas
+* Responde los mensajes de la CPU y Kernel con datos reales
+* Respuesta Page Fault de manera genérica sin acciones
+```
+
+### Documentacion 📖
+```
+* Sistemas Operativos, Silberschatz, Galvin 7ma Ed. - Capítulo 8: Memoria principal
+* Sistemas Operativos, Stallings, William 5ta Ed. - Parte VII: Memoria virtual (Cap. 8)
+* Sistemas Operativos, Silberschatz, Galvin 7ma Ed. - Capítulo 9: Memoria virtual
+* Tutorial de Valgrind - https://docs.utnso.com.ar/guias/herramientas/valgrind
+```
 
 ---
 

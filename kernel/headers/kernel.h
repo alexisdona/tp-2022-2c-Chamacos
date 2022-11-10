@@ -60,8 +60,10 @@ pthread_mutex_t mutex_pid;
 
 t_queue* new_queue;
 t_queue* exit_queue;
-t_queue* ready1_queue;
-t_queue* ready2_queue;
+//t_queue* ready1_queue;
+//t_queue* ready2_queue;
+t_list* ready1_queue;
+t_list* ready2_queue;
 t_queue* blocked_screen_queue;
 t_queue* blocked_keyboard_queue;
 t_queue* blocked_page_fault_queue;
@@ -80,6 +82,8 @@ typedef enum {
     BLOQUEADO_PAGE_FAULT,
     EXIT_S
 } estado_pcb;
+
+estado_pcb ready_anterior_pcb_running;
 
 //Obtiene el ip y puerto del kernel para iniciar el servidor, devuele el socket
 int levantar_servidor();
@@ -106,6 +110,8 @@ void inicializar_semaforos_sincronizacion(uint32_t grado_multiprogramacion);
 void agregar_pcb_a_cola(t_pcb*,pthread_mutex_t, t_queue*);
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t, t_queue* cola);
 
+void agregar_pcb_a_lista(t_pcb*,pthread_mutex_t, t_list*);
+t_pcb* quitar_pcb_de_lista(pthread_mutex_t, t_list* cola);
 int algoritmo_planificacion_tiene_desalojo();
 
 //Funciones del planificador de largo plazo =================
