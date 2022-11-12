@@ -462,12 +462,14 @@ void* manejador_estado_blocked_io(void* x){
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <%s> durante %ds"WHT,pcb->pid,traducir_dispositivo(io),tiempo_bloqueado/1000000));
         pthread_mutex_unlock(&mutex_logger);
+        //El usleep deberia estar en un hilo por cada io.
         usleep(tiempo_bloqueado);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_IO,BLOQUEADO_IO);
     }
     return EXIT_SUCCESS;
 }
 
+//Las pantallas son independientes entre consolas, no "debiera" haber una cola
 void* manejador_estado_blocked_screen(void* x){
     t_pcb* pcb;
 
@@ -480,11 +482,13 @@ void* manejador_estado_blocked_screen(void* x){
         uint32_t valor_a_imprimir = *obtener_registro_por_bloqueo_pantalla_teclado(pcb);
         log_info(logger,BLU"Conexion Consola: Solicitud de imprimir valor."WHT);
         enviar_imprimir_valor(valor_a_imprimir,pcb->socket_consola);
+        //Esto deberia estar en conexion-consola para debloquearlos
         sem_wait(&desbloquear_pantalla);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
     }
 }
 
+//Los teclados son independientes entre consolas, no "debiera" haber una cola
 void* manejador_estado_blocked_keyboard(void* x){
     t_pcb* pcb;
 
@@ -496,6 +500,7 @@ void* manejador_estado_blocked_keyboard(void* x){
         pthread_mutex_unlock(&mutex_logger);
         log_info(logger,BLU"Conexion Consola: Solicitud de valor."WHT);
         enviar_codigo_op(pcb->socket_consola,INPUT_VALOR);
+        //Estas instrucciones debieran ir en conexion-consola para desbloquearlos
         sem_wait(&desbloquear_teclado);
         actualizar_registro_por_teclado(pcb,input_consola);
         agregar_a_ready(pcb,BLOQUEAR_PROCESO_TECLADO,BLOQUEADO_TECLADO);
