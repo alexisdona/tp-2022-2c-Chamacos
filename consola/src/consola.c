@@ -29,10 +29,6 @@ int main(int argc, char* argv[]) {
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* tabla_segmentos = convertir_segmentos(segmentos_config);
 
-    enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, tabla_segmentos);
-    log_info(logger,"Envie lista de instrucciones y tabla_segmentos");
-
-
 	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_DE_RESPUESTA");
     log_info(logger,string_from_format("Retardo de impresion: %ds",tiempo_respuesta/1000));
 
