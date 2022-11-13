@@ -25,7 +25,6 @@ int main(int argc, char* argv[]) {
     int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
     int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
-    enviar_handshake_inicial(socket_kernel, CONSOLA, logger);
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* tabla_segmentos = convertir_segmentos(segmentos_config);

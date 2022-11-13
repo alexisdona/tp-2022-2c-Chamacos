@@ -17,12 +17,6 @@ int main(int argc, char* argv[]){
 	char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
 	int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
 
-    int socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
-    enviar_handshake_inicial(socket_memoria,CPU_DISPATCH,logger);
-
-	pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_memoria);
-    pthread_detach(thread_escucha_memoria);
-
 	int socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_dispatch,CPU_DISPATCH,logger);
 
@@ -34,6 +28,11 @@ int main(int argc, char* argv[]){
 
 	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
+
+    int socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
+
+    pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_memoria);
+    pthread_detach(thread_escucha_memoria);
 
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
 

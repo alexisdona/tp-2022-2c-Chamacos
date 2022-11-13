@@ -82,11 +82,11 @@ int esperar_cliente(int socket_server, t_log* logger){
         close(socket_server);
         exit(-1);
     }
-/*
+
     printf(BLU"");
     log_info(logger, "Se conecto un cliente!");
     printf(WHT"");
-*/
+
     return socket_cliente;
 }
 
@@ -361,6 +361,7 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
     agregar_entero(paquete, pcb->registros_pcb->registro_dx);
     agregar_lista_instrucciones(paquete, pcb->lista_instrucciones);
     agregar_tabla_segmentos(paquete, pcb->tabla_segmentos);
+    agregar_entero(paquete, pcb->socket_consola);
 
     enviar_paquete(paquete, socket_destino);
     eliminar_paquete(paquete);
@@ -369,6 +370,7 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
 t_pcb* recibir_PCB(int socket_desde){
 
     t_pcb* pcb = malloc(sizeof(t_pcb));
+    t_registros_pcb* registros_pcb = malloc(sizeof(registros_pcb));
     t_list* lista_instrucciones = list_create();
     t_list* tabla_segmentos = list_create();
     void* buffer;
@@ -386,16 +388,18 @@ t_pcb* recibir_PCB(int socket_desde){
     pcb->program_counter = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb->registro_ax = auxiliar;
+    registros_pcb->registro_ax = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb->registro_bx = auxiliar;
+    registros_pcb->registro_bx = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb->registro_cx = auxiliar;
+    registros_pcb->registro_cx = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    pcb->registros_pcb->registro_dx = auxiliar;
+    registros_pcb->registro_dx = auxiliar;
+
+    pcb->registros_pcb = registros_pcb;
 
     //recibo primero la cantidad de elementos de la lista de instrucciones
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );

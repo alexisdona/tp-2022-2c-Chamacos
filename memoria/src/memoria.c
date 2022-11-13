@@ -8,17 +8,24 @@ int main(int argc, char* argv[]){
     CONFIG_FILE = argv[1];
     logger = iniciar_logger(LOG_FILE, LOG_NAME);
     levantar_config();
-	//Levanto el servidor de memoria
-    socket_srv_memoria = levantar_servidor();
     iniciar_estructuras_administrativas_kernel();
     crear_archivo_swap();
     //mostrar_contenido_archivo_swap();
     crear_espacio_usuario();
 
-    while (1) {
-        escuchar_cliente(socket_srv_memoria, logger); //CPU
-        escuchar_cliente(socket_srv_memoria, logger); //KERNEL
+
+
+    socket_kernel =  crear_conexion(ip_kernel, puerto_kernel);
+    enviar_handshake_inicial(socket_kernel, MEMORIA, logger );
+    pthread_create(&thread_escucha_kernel, NULL, conexion_kernel, (void*) (intptr_t) socket_kernel);
+    pthread_detach(thread_escucha_kernel);
+
+    socket_srv_memoria = levantar_servidor();
+    log_info(logger, "Esperando CPU");
+    while (socket_kernel != -1) {
+        escuchar_cliente(socket_srv_memoria, logger);
     }
+
 
 }
 
@@ -32,6 +39,12 @@ void levantar_config() {
     algoritmo_reemplazo = config_get_string_value(memoria_config, "ALGORITMO_REEMPLAZO");
     tamanio_swap = config_get_int_value(memoria_config,"TAMANIO_SWAP");
     path_swap = config_get_string_value(memoria_config, "PATH_SWAP");
+    ip_kernel = config_get_string_value(communication_config, "IP_KERNEL");
+    puerto_kernel = config_get_int_value(communication_config, "PUERTO_KERNEL");
+    ip_cpu = config_get_string_value(communication_config, "IP_CPU");
+    puerto_cpu = config_get_int_value(communication_config, "PUERTO_CPU_DISPATCH");
+
+
 }
 
 void validar_argumentos_main(int argumentos){
@@ -49,7 +62,7 @@ void validar_argumentos_main(int argumentos){
 int levantar_servidor(){
     char* ip_memoria = config_get_string_value(communication_config,"IP_MEMORIA");
     char* puerto_memoria = config_get_string_value(communication_config,"PUERTO_MEMORIA");
-    return iniciar_servidor(ip_memoria,puerto_memoria,logger);
+    return iniciar_servidor(ip_memoria,puerto_memoria, logger);
 }
 
 
@@ -84,7 +97,7 @@ void crear_espacio_usuario() {
 
 uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento ) {
     int cantidad_registros_tabla_segmentos = tamanio_segmento/tamanio_pagina;
-    t_registro_tabla_paginas* registro_tabla_paginas;
+    t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
 
     for(int i=0; i<cantidad_registros_tabla_segmentos; i++) {
         registro_tabla_paginas->numero_pagina=i;
@@ -96,6 +109,8 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento ) {
         list_add(registros_tabla_paginas, registro_tabla_paginas);
     }
     list_add(tabla_paginas, list_duplicate(registros_tabla_paginas));
+    list_clean(registros_tabla_paginas);
+    free(registro_tabla_paginas);
     return list_size(tabla_paginas);
 }
 
@@ -149,7 +164,7 @@ void mostrar_contenido_archivo_swap() {
     }
 }
 
-int escuchar_cliente(int socket_server, t_log* logger) {
+void escuchar_cliente(int socket_server, t_log* logger) {
     int cliente = esperar_cliente(socket_server, logger);
     if (cliente != -1) {
         pthread_t hilo;
@@ -158,9 +173,8 @@ int escuchar_cliente(int socket_server, t_log* logger) {
         attrs->fd = cliente;
         pthread_create(&hilo, NULL, (void*) procesar_conexion, (void*) attrs);
         pthread_detach(hilo);
-        return 1;
     }
-    return 0;
+
 }
 
 void procesar_conexion(void* void_args) {
@@ -172,6 +186,7 @@ void procesar_conexion(void* void_args) {
 
     while(cliente_fd != -1) {
         op_code cod_op = recibir_operacion(cliente_fd);
+        log_info(logger, "EN MEMORIA RECIBI un cod_op %s", cod_op);
         switch (cod_op) {
             case MENSAJE:
                 recibir_mensaje(cliente_fd, logger);
@@ -180,8 +195,7 @@ void procesar_conexion(void* void_args) {
                 break;
             case LEER_MEMORIA:
                 break;
-            case CREAR_ESTRUCTURAS_ADMIN:
-                break;
+
             case OBTENER_MARCO:
                 break;
             case TERMINAR_PROCESO:
@@ -196,3 +210,42 @@ void procesar_conexion(void* void_args) {
         }
     }
 }
+
+
+void *conexion_kernel(void* socket){
+    socket_kernel = (intptr_t) socket;
+    log_info(logger, "socket_kernel: %d", socket_kernel);
+    while(socket_kernel != -1) {
+        op_code codigo_operacion = recibir_operacion(socket_kernel);
+        switch(codigo_operacion) {
+            case CREAR_ESTRUCTURAS_ADMIN:
+                ;
+                t_pcb* pcb = recibir_PCB(socket_kernel);
+                log_info(logger, "creando estructuras administrativas");
+
+                for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
+                    t_segmento * segmento = malloc(sizeof(t_segmento));
+                    segmento = list_get(pcb->tabla_segmentos, i);
+                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento)-1);
+
+                }
+                enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
+                break;
+
+        }
+    }
+}
+
+
+void *conexion_cpu(void* socket){
+    socket_cpu = (intptr_t) socket;
+    log_info(logger, "socket_cpu: %d", socket_cpu);
+    while(socket_cpu != -1) {
+        op_code codigo_operacion = recibir_operacion(socket_cpu);
+        switch(codigo_operacion) {
+
+        }
+    }
+    return EXIT_SUCCESS;
+}
+

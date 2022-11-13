@@ -37,6 +37,15 @@ t_bitarray* frames_disponibles;
 void* bloque_frames_lilbres;
 char* algoritmo_reemplazo;
 char* path_swap;
+char* ip_kernel;
+int puerto_kernel;
+char* ip_cpu;
+int puerto_cpu;
+int socket_kernel;
+int socket_cpu;
+
+pthread_t thread_escucha_kernel;
+pthread_t thread_escucha_cpu;
 
 t_list* registros_tabla_paginas;
 t_list* tabla_paginas;
@@ -50,6 +59,7 @@ void crear_archivo_swap();
 void mostrar_contenido_archivo_swap();
 void levantar_config();
 void procesar_conexion(void* void_args);
-int escuchar_cliente(int socket_server, t_log* logger);
-
+void escuchar_cliente(int socket_server, t_log* logger);
+void *conexion_kernel(void* socket);
+void *conexion_cpu(void* socket);
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

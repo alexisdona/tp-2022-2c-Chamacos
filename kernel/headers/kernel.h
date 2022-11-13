@@ -28,6 +28,7 @@ pthread_t thread_escucha_interrupt;
 pthread_t thread_clock;
 
 int socket_cpu_dispatch;
+int socket_memoria;
 
 //Semaforos de sincronizacion
 sem_t grado_multiprogramacion;
@@ -45,6 +46,7 @@ sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
 sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
+sem_t estructuras_administrativas_pcb_listas;
 
 //Mutex para proteger las colas
 pthread_mutex_t mutex_new;

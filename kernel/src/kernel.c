@@ -13,6 +13,10 @@ int main(int argc, char* argv[]) {
     kernel_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
+    char* ip_memoria = config_get_string_value(communication_config, "IP_MEMORIA");
+    int puerto_memoria = config_get_int_value(communication_config, "PUERTO_MEMORIA");
+  //  socket_memoria = crear_conexion(ip_memoria, puerto_memoria);
+
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
     lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
@@ -60,7 +64,7 @@ void esperar_consolas(int socket_srv){
     while(1){
         pthread_t thread_escucha_consola;
         int socket_consola = esperar_cliente(socket_srv, logger);
-        recibir_handshake_inicial(socket_consola,KERNEL,logger);
+       // recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
         pthread_detach(thread_escucha_consola);
     }
@@ -73,7 +77,8 @@ void esperar_modulos(int socket_srv){
     uint32_t cantidad_modulos = 3; //Dispatch - Interrupt - Memoria
     for(int i=0; i < cantidad_modulos; i++){
         int socket_cliente = esperar_cliente(socket_srv,logger);
-        uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL,logger);
+        uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL, logger);
+        log_info(logger, "entro un cliente en kernel: %d, modulo:%d", socket_cliente, modulo);
 
         switch(modulo){
             case CPU_DISPATCH:
@@ -223,9 +228,23 @@ void* clock_interrupt(void* socket){
 }
 
 void *conexion_memoria(void* socket){
-    int socket_memoria = (intptr_t) socket;
-    while(socket_memoria != -1){
+    socket_memoria = (intptr_t) socket;
+    log_info(logger, "socket_memoria: %d", socket_memoria);
+    while(socket_memoria != -1) {
         op_code codigo_operacion = recibir_operacion(socket_memoria);
+        switch(codigo_operacion) {
+            case ACTUALIZAR_INDICE_TABLA_PAGINAS:
+                ;
+                t_pcb *pcb = recibir_PCB(socket_memoria);
+                agregar_pcb_a_cola(pcb, mutex_new, new_queue);
+                sem_post(&estructuras_administrativas_pcb_listas);
+                break;
+              //  case PAGE_FAULT_ATENDIDO
+            default:
+                break;
+
+
+        }
     }
     return EXIT_SUCCESS;
 }
@@ -288,10 +307,15 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = ultimo_pid;
-    pcb->registros_pcb->registro_ax=0;
-    pcb->registros_pcb->registro_bx=0;
-    pcb->registros_pcb->registro_cx=0;
-    pcb->registros_pcb->registro_dx=0;
+    t_registros_pcb* registros_pcb = malloc(sizeof (t_registros_pcb));
+
+    registros_pcb->registro_ax=0;
+    registros_pcb->registro_bx =0;
+    registros_pcb->registro_cx =0;
+    registros_pcb->registro_dx =0;
+
+    pcb->registros_pcb = registros_pcb;
+
     pcb->tabla_segmentos = tabla_segmentos;
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
@@ -361,6 +385,7 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&bloquear_por_teclado,0,0);
     sem_init(&desbloquear_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
+    sem_init(&estructuras_administrativas_pcb_listas,0,1);
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
@@ -409,8 +434,10 @@ void pcb_a_dispatcher(){
         sem_wait(&new_to_ready);
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_new,new_queue);
-        //Antes de pasarlo a ready le pido a memoria que me cree las estructuras administrativas del pcb en memoria
-        //crear_estructuras_memoria(pcb); //TODO revisar con carri como se arma la conexión a memoria
+        log_info(logger, "antes de crear las estructuras administrativas");
+        enviar_PCB(socket_memoria, pcb, CREAR_ESTRUCTURAS_ADMIN);
+        log_info(logger, "despues de crear las estructuras administrativas");
+        sem_wait(&estructuras_administrativas_pcb_listas);
         agregar_a_ready(pcb,PCB,NEW);
     }
 }
