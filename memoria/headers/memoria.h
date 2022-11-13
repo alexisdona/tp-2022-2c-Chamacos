@@ -62,4 +62,6 @@ void procesar_conexion(void* void_args);
 void escuchar_cliente(int socket_server, t_log* logger);
 void *conexion_kernel(void* socket);
 void *conexion_cpu(void* socket);
+void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t cantidad_entradas_tabla);
+
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

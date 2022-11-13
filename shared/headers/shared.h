@@ -101,7 +101,9 @@ typedef enum {
     ESCRIBIR_MEMORIA,
     LEER_MEMORIA,
     OBTENER_MARCO,
-    TERMINAR_PROCESO
+    TERMINAR_PROCESO,
+    HANDSHAKE_CPU_MEMORIA,
+    SEGMENTATION_FAULT
 } op_code;
 
 typedef struct{

@@ -1,3 +1,4 @@
+
 #include "../headers/cpu.h"
 
 int main(int argc, char* argv[]){
@@ -9,27 +10,30 @@ int main(int argc, char* argv[]){
     logger = iniciar_logger(LOG_FILE,LOG_NAME);
     cpu_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
-
+    tlb = list_create();
 	lista_dispositivos = config_get_array_value(cpu_config,"DISPOSITIVOS_IO");
 
 	char* IP_MEMORIA = config_get_string_value(communication_config,"IP_MEMORIA");
     int PUERTO_MEMORIA = config_get_int_value(communication_config,"PUERTO_MEMORIA");
 	char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
 	int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
+    algoritmo_reemplazo_tlb = config_get_string_value(cpu_config, "REEMPLAZO_TLB");
+    entradas_max_tlb = config_get_int_value(cpu_config, "ENTRADAS_TLB");
 
-	int socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
+    socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_dispatch,CPU_DISPATCH,logger);
 
 	pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_kernel_dispatch);
     pthread_detach(thread_escucha_dispatch);
 
-	int socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
+	socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
 
 	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
 
     int socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
+    handshake_memoria(socket_memoria);
 
     pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_memoria);
     pthread_detach(thread_escucha_memoria);
@@ -63,6 +67,7 @@ void validar_argumentos_main(int argumentos){
 
 void* conexion_memoria(void* socket){
     int socket_memoria = (intptr_t) socket;
+
     while(socket_memoria != -1){
         op_code codigo_operacion = recibir_operacion(socket_memoria);
 	}
@@ -239,42 +244,118 @@ void desalojo_proceso(){
 	estado_proceso = CONTINUA_PROCESO;
 	hubo_interrupcion = CONTINUA_PROCESO;
 }
-/*
+
 dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
 
-    if (direccion_logica < pcb->tamanioProceso) {
+    uint32_t tamanio_maximo_segmento = entradas_por_tabla * tamanio_pagina;
+    uint32_t numero_segmento = floor(direccion_logica / tamanio_maximo_segmento);
+    uint32_t desplazamiento_segmento = direccion_logica % tamanio_maximo_segmento;
+    uint32_t numero_pagina = floor(desplazamiento_segmento / tamanio_pagina);
+    uint32_t desplazamiento_pagina = desplazamiento_segmento % tamanio_pagina;
 
-        uint32_t numero_pagina = floor(direccion_logica / tamanio_pagina);
-        uint32_t entrada_tabla_1er_nivel = floor(numero_pagina / entradas_por_tabla);
-        uint32_t entrada_tabla_2do_nivel = numero_pagina % entradas_por_tabla;
-        uint32_t desplazamiento = direccion_logica - (numero_pagina * tamanio_pagina);
+    t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
+    if (desplazamiento_segmento > segmento->tamanio_segmento) {
+        enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
+        return NULL;
+    }
 
-        uint32_t marco;
-        marco = tlb_obtener_marco(numero_pagina);
+
+    uint32_t marco;
+    marco = tlb_obtener_marco(numero_pagina);
         if (marco == -1 ) {
             //TLB_MISS
-            log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->idProceso, numero_pagina));
-            uint32_t tabla_segundo_nivel;
-            tabla_segundo_nivel = obtener_tabla_segundo_nivel(pcb->tablaPaginas, entrada_tabla_1er_nivel); //1er acceso
-            marco = obtener_marco_memoria(pcb->tablaPaginas, tabla_segundo_nivel, entrada_tabla_2do_nivel, numero_pagina); //2do acceso
+            log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->pid, numero_pagina));
+
             tlb_actualizar(numero_pagina, marco);
         }
         else {
             //TLB HIT
-            log_info(logger, string_from_format(GRN"TLB HIT para tbl en proceso %zu, numero de página %d y marco %d"RESET,pcb->idProceso, numero_pagina, marco));
+            log_info(logger, string_from_format(GRN"TLB HIT para tbl en proceso %zu, numero de página %d y marco %d"RESET,pcb->pid, numero_pagina, marco));
 
         }
         dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
         direccion_fisica->numero_pagina = numero_pagina;
         direccion_fisica->marco = marco;
-        direccion_fisica->desplazamiento = desplazamiento;
-        direccion_fisica->indice_tabla_primer_nivel = pcb->tablaPaginas;
-        logear_direccion_fisica(direccion_fisica);
+     //   direccion_fisica->desplazamiento = desplazamiento;
+
         return direccion_fisica;
-    }
-    else {
-        log_error(logger, "El proceso intento acceder a una direccion logica invalida");
-        return NULL;
+
+}
+
+void handshake_memoria(int conexion_memoria){
+    op_code codigo_operacion = recibir_operacion(conexion_memoria);
+    size_t tamanio_stream;
+    if (codigo_operacion == HANDSHAKE_CPU_MEMORIA) {
+        recv(conexion_memoria, &tamanio_stream, sizeof(size_t), 0); // no me importa en este caso
+        recv(conexion_memoria, &tamanio_pagina, sizeof(uint32_t), 0);
+        recv(conexion_memoria, &entradas_por_tabla, sizeof(uint32_t), 0);
     }
 }
-*/
+
+////--------------------------------------------------------TLB------------------------------------------------------------------
+
+uint32_t tlb_obtener_marco(uint32_t numero_pagina) {
+    tlb_entrada * entrada_tlb;
+    if (list_size(tlb) > 0) {
+        for (int i=0; i < list_size(tlb); i++) {
+            entrada_tlb = list_get(tlb,i);
+            if (entrada_tlb->pagina == numero_pagina) {
+                entrada_tlb->veces_referenciada+=1;
+                return entrada_tlb->marco;
+            }
+        }
+    }
+    return -1;
+}
+
+void reemplazar_entrada_tlb(tlb_entrada* entrada) {
+    if (strcmp(algoritmo_reemplazo_tlb, "FIFO") ==0){
+        list_remove(tlb, 0);
+        list_add(tlb, entrada);
+    }
+    else {
+        list_sort(tlb, comparator);
+        list_remove(tlb, 0);
+        list_add(tlb, entrada);
+    }
+}
+
+void tlb_actualizar(uint32_t numero_pagina, uint32_t marco){
+    tlb_entrada* tlb_entrada = malloc(sizeof(tlb_entrada));
+    tlb_entrada ->marco = marco;
+    tlb_entrada ->pagina = numero_pagina;
+    tlb_entrada->veces_referenciada=1;
+    //si ahora es otra pagina la que referencia al marco porque se reemplazo por el otro
+    actualizar_entrada_marco_existente(numero_pagina, marco);
+    if(list_size(tlb) >= entradas_max_tlb){
+        log_info(logger, string_from_format(GRN"Ejecutando algoritmo de reemplazo %s para entrada en la tlb para proceso %zu, numero de pagina %d y marco %d"RESET,algoritmo_reemplazo_tlb, pcb->pid, numero_pagina, marco));
+        reemplazar_entrada_tlb(tlb_entrada);
+    }
+    else
+    {
+        log_info(logger, string_from_format(GRN"Agregando entrada en la tlb para proceso %zu, numero de pagina %d y marco %d"RESET, pcb->pid, numero_pagina, marco));
+        list_add(tlb, tlb_entrada);
+    }
+}
+
+static bool comparator (void* entrada1, void* entrada2) {
+    return (((tlb_entrada *) entrada1)->veces_referenciada) < (((tlb_entrada *) entrada2)->veces_referenciada); }
+
+void limpiar_tlb(){
+    list_clean(tlb);
+}
+
+/*
+ * Si el marco que me viene de memoria ya es una entrada en la tlb con otra pagina, le actualizo la página
+ * */
+void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
+    tlb_entrada * entrada;
+    for(int i=0; i< list_size(tlb);i++) {
+        entrada = list_get(tlb, i);
+        if (entrada->marco == marco && numero_pagina!= entrada->pagina) {
+            entrada->pagina = numero_pagina;
+            entrada->veces_referenciada=1;
+        }
+    }
+}
+

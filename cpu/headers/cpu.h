@@ -2,16 +2,30 @@
 #define TP_2022_2C_CHAMACOS_CPU_H
 
 #include "../../shared/headers/shared.h"
+#include <math.h>
 
 #define LOG_FILE "cpu.log"
 #define LOG_NAME "cpu_log"
 
 typedef struct
 {
+    uint32_t numero_pagina;
     uint32_t marco;
     uint32_t desplazamiento;
 
 } dir_fisica;
+
+typedef struct{
+    uint32_t pagina;
+    uint32_t marco;
+    uint32_t veces_referenciada;
+} tlb_entrada;
+
+int socket_kernel_dispatch, socket_kernel_interrupt;
+
+uint32_t tamanio_pagina, entradas_por_tabla, entradas_max_tlb;
+t_list* tlb;
+char* algoritmo_reemplazo_tlb;
 
 t_config* cpu_config;
 t_config* communication_config;
@@ -54,5 +68,12 @@ op_code operacion_EXIT();
 void chequear_interrupcion();
 void desalojo_proceso();
 dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica);
+void handshake_memoria(int conexionMemoria);
+uint32_t tlb_obtener_marco(uint32_t numero_pagina);
+void reemplazar_entrada_tlb(tlb_entrada* entrada);
+void tlb_actualizar(uint32_t numero_pagina, uint32_t marco);
+void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco);
+static bool comparator (void*, void*);
+
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H

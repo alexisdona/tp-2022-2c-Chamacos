@@ -185,6 +185,7 @@ void procesar_conexion(void* void_args) {
     free(attrs);
 
     while(cliente_fd != -1) {
+        handshake_cpu_memoria(cliente_fd, tamanio_pagina, entradas_por_tabla);
         op_code cod_op = recibir_operacion(cliente_fd);
         log_info(logger, "EN MEMORIA RECIBI un cod_op %s", cod_op);
         switch (cod_op) {
@@ -249,3 +250,12 @@ void *conexion_cpu(void* socket){
     return EXIT_SUCCESS;
 }
 
+void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t cantidad_entradas_tabla) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = HANDSHAKE_CPU_MEMORIA;
+
+    agregar_entero(paquete, tamanio_pagina);
+    agregar_entero(paquete, cantidad_entradas_tabla);
+    enviar_paquete(paquete, socket_destino);
+    eliminar_paquete(paquete);
+}
