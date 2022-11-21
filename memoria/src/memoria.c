@@ -183,11 +183,10 @@ void procesar_conexion(void* void_args) {
     t_log* logger = attrs->log;
     int cliente_fd = attrs->fd;
     free(attrs);
+    handshake_cpu_memoria(cliente_fd, tamanio_pagina, entradas_por_tabla);
 
     while(cliente_fd != -1) {
-        handshake_cpu_memoria(cliente_fd, tamanio_pagina, entradas_por_tabla);
         op_code cod_op = recibir_operacion(cliente_fd);
-        log_info(logger, "EN MEMORIA RECIBI un cod_op %s", cod_op);
         switch (cod_op) {
             case MENSAJE:
                 recibir_mensaje(cliente_fd, logger);
@@ -196,8 +195,8 @@ void procesar_conexion(void* void_args) {
                 break;
             case LEER_MEMORIA:
                 break;
-
             case OBTENER_MARCO:
+                printf("Me pidieron un marco");
                 break;
             case TERMINAR_PROCESO:
             case -1:
@@ -235,19 +234,6 @@ void *conexion_kernel(void* socket){
 
         }
     }
-}
-
-
-void *conexion_cpu(void* socket){
-    socket_cpu = (intptr_t) socket;
-    log_info(logger, "socket_cpu: %d", socket_cpu);
-    while(socket_cpu != -1) {
-        op_code codigo_operacion = recibir_operacion(socket_cpu);
-        switch(codigo_operacion) {
-
-        }
-    }
-    return EXIT_SUCCESS;
 }
 
 void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t cantidad_entradas_tabla) {

@@ -103,7 +103,8 @@ typedef enum {
     OBTENER_MARCO,
     TERMINAR_PROCESO,
     HANDSHAKE_CPU_MEMORIA,
-    SEGMENTATION_FAULT
+    SEGMENTATION_FAULT,
+    PAGE_FAULT_ATENDIDO
 } op_code;
 
 typedef struct{

@@ -239,7 +239,8 @@ void *conexion_memoria(void* socket){
                 agregar_pcb_a_cola(pcb, mutex_new, new_queue);
                 sem_post(&estructuras_administrativas_pcb_listas);
                 break;
-              //  case PAGE_FAULT_ATENDIDO
+            case PAGE_FAULT_ATENDIDO:
+                break;
             default:
                 break;
 
@@ -320,8 +321,8 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
     pcb->socket_consola = socket_consola;
-    ultimo_pid++;
 
+    ultimo_pid++;
     return pcb;
 }
 
@@ -641,4 +642,5 @@ char* traducir_estado_pcb(estado_pcb estado){
         case EXIT_S:                return "EXIT";
         default:                    return "ERROR - NOMBRE ESTADO INADECUADO";
     }
+
 }

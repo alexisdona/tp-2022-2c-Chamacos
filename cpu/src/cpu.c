@@ -22,20 +22,17 @@ int main(int argc, char* argv[]){
 
     socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_dispatch,CPU_DISPATCH,logger);
-
-	pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_kernel_dispatch);
+    pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t) socket_kernel_dispatch);
     pthread_detach(thread_escucha_dispatch);
 
 	socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
-
-	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_kernel_interrupt);
+	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t) socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
 
-    int socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
+    socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
     handshake_memoria(socket_memoria);
-
-    pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_memoria);
+    pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t )socket_memoria);
     pthread_detach(thread_escucha_memoria);
 
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
@@ -83,7 +80,7 @@ void* conexion_dispatch(void* socket){
 			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
-			enviar_PCB(socket_dispatch,pcb,estado_proceso);
+			enviar_PCB(socket_dispatch, pcb,estado_proceso);
 			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
 			pcb = NULL;
 		}else{
@@ -196,9 +193,19 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
 	return CONTINUA_PROCESO;
 }
 
-op_code operacion_MOV_IN(registro_cpu* registro,uint32_t direccion_logica){
+/** MOV_IN (Registro, Dirección Lógica): Lee el valor de memoria del segmento de Datos correspondiente
+ * a la Dirección Lógica y lo almacena en el Registro.
+ */
+
+op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
-  //  dir_fisica * direccion_fisica = obtener_direccion_fisica(direccion_logica);
+    dir_fisica * direccion_fisica = obtener_direccion_fisica(direccion_logica);
+
+    if(direccion_fisica != NULL) {
+        uint32_t valor = leer_en_memoria(direccion_fisica);
+        log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
+        return CONTINUA_PROCESO;
+    }
 	return CONTINUA_PROCESO;
 }
 
@@ -252,7 +259,7 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
     uint32_t desplazamiento_segmento = direccion_logica % tamanio_maximo_segmento;
     uint32_t numero_pagina = floor(desplazamiento_segmento / tamanio_pagina);
     uint32_t desplazamiento_pagina = desplazamiento_segmento % tamanio_pagina;
-
+    uint32_t marco;
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
     if (desplazamiento_segmento > segmento->tamanio_segmento) {
         enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
@@ -260,26 +267,24 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
     }
 
 
-    uint32_t marco;
     marco = tlb_obtener_marco(numero_pagina);
-        if (marco == -1 ) {
-            //TLB_MISS
-            log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->pid, numero_pagina));
+    if (marco == -1 ) {
+       //TLB_MISS
+       log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->pid, numero_pagina));
+       uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, 0)))->indice_tabla_paginas;
+       marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
+       //  tlb_actualizar(numero_pagina, marco);
+     } else {
+       //TLB HIT
+       log_info(logger, string_from_format(GRN"TLB HIT para tbl en proceso %zu, numero de página %d y marco %d"RESET,pcb->pid, numero_pagina, marco));
+     }
 
-            tlb_actualizar(numero_pagina, marco);
-        }
-        else {
-            //TLB HIT
-            log_info(logger, string_from_format(GRN"TLB HIT para tbl en proceso %zu, numero de página %d y marco %d"RESET,pcb->pid, numero_pagina, marco));
+     dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
+     direccion_fisica->numero_pagina = numero_pagina;
+     direccion_fisica->marco = marco;
+     direccion_fisica->desplazamiento = desplazamiento_pagina;
 
-        }
-        dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
-        direccion_fisica->numero_pagina = numero_pagina;
-        direccion_fisica->marco = marco;
-     //   direccion_fisica->desplazamiento = desplazamiento;
-
-        return direccion_fisica;
-
+     return direccion_fisica;
 }
 
 void handshake_memoria(int conexion_memoria){
@@ -294,7 +299,7 @@ void handshake_memoria(int conexion_memoria){
 
 ////--------------------------------------------------------TLB------------------------------------------------------------------
 
-uint32_t tlb_obtener_marco(uint32_t numero_pagina) {
+int tlb_obtener_marco(uint32_t numero_pagina) {
     tlb_entrada * entrada_tlb;
     if (list_size(tlb) > 0) {
         for (int i=0; i < list_size(tlb); i++) {
@@ -357,5 +362,56 @@ void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
             entrada->veces_referenciada=1;
         }
     }
+}
+
+uint32_t leer_en_memoria(dir_fisica * direccion_fisica) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = LEER_MEMORIA;
+    agregar_entero(paquete, direccion_fisica->marco);
+    agregar_entero(paquete, direccion_fisica->desplazamiento);
+    agregar_entero(paquete, direccion_fisica->numero_pagina);
+
+    enviar_paquete(paquete, socket_memoria);
+    eliminar_paquete(paquete);
+
+    uint32_t valor_leido;
+    int obtuve_valor = 0;
+    while (socket_memoria != -1 && obtuve_valor == 0) {
+        op_code cod_op = recibir_operacion(socket_memoria);
+        if(cod_op == LEER_MEMORIA){
+            void* buffer = recibir_buffer(socket_memoria);
+            memcpy(&valor_leido, buffer, sizeof(uint32_t));
+            obtuve_valor = 1;
+        }
+    }
+    return valor_leido;
+
+}
+
+uint32_t obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina) {
+
+    t_paquete * paquete = crear_paquete();
+    paquete->codigo_operacion = OBTENER_MARCO;
+    agregar_entero(paquete, pcb->pid);
+    agregar_entero(paquete, indice_tabla_paginas);
+    agregar_entero(paquete, numero_pagina);
+    enviar_paquete(paquete, socket_memoria);
+    eliminar_paquete(paquete);
+    uint32_t marco;
+
+    int obtuve_marco = 0;
+    while (socket_memoria != -1 && obtuve_marco == 0) {
+        op_code cod_op = recibir_operacion(socket_memoria);
+        printf("op: %d\n",cod_op);
+        if(cod_op == OBTENER_MARCO){                ;
+            void* buffer = recibir_buffer(socket_memoria);
+            memcpy(&marco, buffer, sizeof(uint32_t));
+            printf("\nmarco de memoria: %d\n", marco);
+            obtuve_marco = 1;
+        }
+        if(cod_op == -1) break;
+    }
+    printf("FIN MARCO MEMORIA \n");
+    return marco;
 }
 

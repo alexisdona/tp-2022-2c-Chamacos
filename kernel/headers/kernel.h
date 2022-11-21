@@ -9,7 +9,7 @@
 uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
-uint32_t ultimo_pid;
+uint32_t ultimo_pid=1;
 uint32_t quantum;
 uint32_t* tiempos_bloqueos;
 op_code motivo_bloqueo;
