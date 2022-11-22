@@ -8,7 +8,6 @@
 #define LOG_NAME "memoria_log"
 
 typedef struct {
-    uint32_t numero_pagina;
     uint32_t frame;
     uint modificado;
     uint uso;

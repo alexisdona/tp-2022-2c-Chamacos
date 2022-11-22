@@ -400,18 +400,30 @@ uint32_t obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pa
     uint32_t marco;
 
     int obtuve_marco = 0;
-    while (socket_memoria != -1 && obtuve_marco == 0) {
+    int hubo_page_fault =0;
+
+    while (socket_memoria != -1 && (obtuve_marco == 0 || hubo_page_fault ==0)) {
         op_code cod_op = recibir_operacion(socket_memoria);
-        printf("op: %d\n",cod_op);
-        if(cod_op == OBTENER_MARCO){                ;
+        switch(cod_op) {
+            case OBTENER_MARCO:
+                ;
             void* buffer = recibir_buffer(socket_memoria);
             memcpy(&marco, buffer, sizeof(uint32_t));
             printf("\nmarco de memoria: %d\n", marco);
             obtuve_marco = 1;
-        }
-        if(cod_op == -1) break;
+            break;
+            case PAGE_FAULT:
+                ;
+                enviar_PCB(socket_kernel_dispatch, pcb, PAGE_FAULT);
+                hubo_page_fault = 1;
+                return 0;
+                break;
+            default:
+                break;
+
     }
-    printf("FIN MARCO MEMORIA \n");
-    return marco;
+        printf("FIN MARCO MEMORIA \n");
+        return marco;
+    }
 }
 

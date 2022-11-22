@@ -35,3 +35,11 @@ registro_cpu* obtener_registro(t_pcb* pcb, registro_cpu registro){
             exit(EXIT_FAILURE);
     }
 }
+
+void enviar_entero(int cliente_fd, uint32_t valor, op_code opCode) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = opCode;
+    agregar_entero(paquete, valor);
+    enviar_paquete(paquete, cliente_fd);
+    eliminar_paquete(paquete);
+}
