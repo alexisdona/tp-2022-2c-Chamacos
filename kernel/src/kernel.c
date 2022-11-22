@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[]) {
 
-    ultimo_pid=0;
+    ultimo_pid=1;
     INTERRUPCIONES_HABILITADAS = 1;
 
     validar_argumentos_main(argc);
@@ -13,10 +13,14 @@ int main(int argc, char* argv[]) {
     kernel_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
 
+    char* ip_memoria = config_get_string_value(communication_config, "IP_MEMORIA");
+    int puerto_memoria = config_get_int_value(communication_config, "PUERTO_MEMORIA");
+  //  socket_memoria = crear_conexion(ip_memoria, puerto_memoria);
+
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
-    char** lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
+    lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
-    
+
     tiempos_bloqueos = malloc(string_array_size(lista_bloqueos)*sizeof(uint32_t));
 
     for(int i=0; i<string_array_size(lista_bloqueos); i++){
@@ -60,7 +64,7 @@ void esperar_consolas(int socket_srv){
     while(1){
         pthread_t thread_escucha_consola;
         int socket_consola = esperar_cliente(socket_srv, logger);
-        recibir_handshake_inicial(socket_consola,KERNEL,logger);
+       // recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
         pthread_detach(thread_escucha_consola);
     }
@@ -73,7 +77,8 @@ void esperar_modulos(int socket_srv){
     uint32_t cantidad_modulos = 3; //Dispatch - Interrupt - Memoria
     for(int i=0; i < cantidad_modulos; i++){
         int socket_cliente = esperar_cliente(socket_srv,logger);
-        uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL,logger);
+        uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL, logger);
+        log_info(logger, "entro un cliente en kernel: %d, modulo:%d", socket_cliente, modulo);
 
         switch(modulo){
             case CPU_DISPATCH:
@@ -116,7 +121,8 @@ void* conexion_dispatch(void* socket){
         log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
         hay_proceso_ejecutando=1;
-        sem_post(&continuar_conteo_quantum);
+
+        if(algoritmo_planificacion_tiene_desalojo() && ready_anterior_pcb_running==READY1) sem_post(&continuar_conteo_quantum);
 
         if(algoritmo_planificacion_tiene_desalojo() && interrupciones_iniciadas == INTERRUPCIONES_HABILITADAS){
             interrupciones_iniciadas--;
@@ -170,6 +176,9 @@ void* conexion_dispatch(void* socket){
                 break;
 
             case INTERRUPCION:
+                pthread_mutex_lock(&mutex_logger);
+                log_info(logger,string_from_format(GRN"PID: <%d> - Desalojado por Fin de Quantum"WHT,pcb->pid));
+                pthread_mutex_unlock(&mutex_logger);
                 agregar_a_ready(pcb,INTERRUPCION,RUNNING);
                 break;
 
@@ -219,9 +228,24 @@ void* clock_interrupt(void* socket){
 }
 
 void *conexion_memoria(void* socket){
-    int socket_memoria = (intptr_t) socket;
-    while(socket_memoria != -1){
+    socket_memoria = (intptr_t) socket;
+    log_info(logger, "socket_memoria: %d", socket_memoria);
+    while(socket_memoria != -1) {
         op_code codigo_operacion = recibir_operacion(socket_memoria);
+        switch(codigo_operacion) {
+            case ACTUALIZAR_INDICE_TABLA_PAGINAS:
+                ;
+                t_pcb *pcb = recibir_PCB(socket_memoria);
+                agregar_pcb_a_cola(pcb, mutex_new, new_queue);
+                sem_post(&estructuras_administrativas_pcb_listas);
+                break;
+            case PAGE_FAULT_ATENDIDO:
+                break;
+            default:
+                break;
+
+
+        }
     }
     return EXIT_SUCCESS;
 }
@@ -246,13 +270,13 @@ void *conexion_consola(void* socket){
                 pthread_mutex_lock(&mutex_pid);
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos, socket_consola);
                 pthread_mutex_unlock(&mutex_pid);
-                agregar_pcb_a_cola(pcb,mutex_new,new_queue);
+                agregar_pcb_a_cola(pcb, mutex_new, new_queue);
                 pthread_mutex_lock(&mutex_logger);
-                log_info(logger,string_from_format(CYN"Se crea el proceso <%d> en NEW"WHT,pcb->pid));
+                log_info(logger,string_from_format(CYN"Se crea el proceso <%d> en NEW"WHT, pcb->pid));
                 pthread_mutex_unlock(&mutex_logger);
                 sem_post(&new_to_ready);
                 break;
-            
+
 			case INPUT_VALOR:
 				input_consola = recibir_valor(socket_consola);
 				pthread_mutex_lock(&mutex_logger);
@@ -265,7 +289,7 @@ void *conexion_consola(void* socket){
                 log_info(logger,BLU"Conexion Consola: Valor impreso."WHT);
                 sem_post(&desbloquear_pantalla);
                 break;
-                
+
             case -1:
                 return EXIT_SUCCESS;
 
@@ -280,21 +304,25 @@ void *conexion_consola(void* socket){
     return EXIT_SUCCESS;
 }
 
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos, uint32_t socket_consola) {
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos, uint32_t socket_consola) {
     t_pcb *pcb =  malloc(sizeof(t_pcb));
 
     pcb->pid = ultimo_pid;
-    pcb->registros_pcb.registro_ax=0;
-    pcb->registros_pcb.registro_bx=0;
-    pcb->registros_pcb.registro_cx=0;
-    pcb->registros_pcb.registro_dx=0;
-    pcb->datos_segmentos.indice_tabla_paginas_segmentos = 0;
-    pcb->datos_segmentos.segmentos = segmentos;
+    t_registros_pcb* registros_pcb = malloc(sizeof (t_registros_pcb));
+
+    registros_pcb->registro_ax=0;
+    registros_pcb->registro_bx =0;
+    registros_pcb->registro_cx =0;
+    registros_pcb->registro_dx =0;
+
+    pcb->registros_pcb = registros_pcb;
+
+    pcb->tabla_segmentos = tabla_segmentos;
     pcb->lista_instrucciones = lista_instrucciones;
     pcb->program_counter= 0;
     pcb->socket_consola = socket_consola;
-    ultimo_pid++;
 
+    ultimo_pid++;
     return pcb;
 }
 
@@ -311,9 +339,9 @@ void iniciar_planificacion(){
 
     new_queue = queue_create();
     exit_queue = queue_create();
-    ready1_queue = queue_create();
+    ready1_queue = list_create();
     if(string_contains(algoritmo_planificacion,"FEEDBACK")){
-        ready2_queue = queue_create();
+        ready2_queue = list_create();
     }
     blocked_screen_queue = queue_create();
     blocked_keyboard_queue = queue_create();
@@ -358,6 +386,7 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&bloquear_por_teclado,0,0);
     sem_init(&desbloquear_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
+    sem_init(&estructuras_administrativas_pcb_listas,0,1);
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
@@ -369,6 +398,19 @@ void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t mutex, t_queue* cola){
     pthread_mutex_lock(&mutex);
     t_pcb* pcb = queue_pop(cola);
+    pthread_mutex_unlock(&mutex);
+    return pcb;
+}
+
+void agregar_pcb_a_lista(t_pcb* pcb,pthread_mutex_t mutex, t_list* cola){
+    pthread_mutex_lock(&mutex);
+    list_add(cola,pcb);
+    pthread_mutex_unlock(&mutex);
+}
+
+t_pcb* quitar_pcb_de_lista(pthread_mutex_t mutex, t_list* cola){
+    pthread_mutex_lock(&mutex);
+    t_pcb* pcb = list_remove(cola,0);
     pthread_mutex_unlock(&mutex);
     return pcb;
 }
@@ -393,6 +435,10 @@ void pcb_a_dispatcher(){
         sem_wait(&new_to_ready);
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_new,new_queue);
+        log_info(logger, "antes de crear las estructuras administrativas");
+        enviar_PCB(socket_memoria, pcb, CREAR_ESTRUCTURAS_ADMIN);
+        log_info(logger, "despues de crear las estructuras administrativas");
+        sem_wait(&estructuras_administrativas_pcb_listas);
         agregar_a_ready(pcb,PCB,NEW);
     }
 }
@@ -440,6 +486,7 @@ void* manejador_estado_ready(void* x){
         t_pcb* pcb = quitar_de_ready(&ready_anterior);
         agregar_pcb_a_cola(pcb,mutex_running,running_queue);
         logear_cambio_estado(pcb,ready_anterior,RUNNING);
+        ready_anterior_pcb_running = ready_anterior;
         sem_post(&enviar_pcb_a_cpu);
     }
     return EXIT_SUCCESS;
@@ -521,7 +568,7 @@ registro_cpu* obtener_registro_por_bloqueo_pantalla_teclado(t_pcb* pcb){
 
 void actualizar_registro_por_teclado(t_pcb* pcb,uint32_t input){
     registro_cpu* registro_pcb = obtener_registro_por_bloqueo_pantalla_teclado(pcb);
-    (*registro_pcb) = input; 
+    (*registro_pcb) = input;
     input=0;
 }
 
@@ -534,22 +581,40 @@ t_instruccion* obtener_instruccion_anterior(t_pcb* pcb){
 void agregar_a_ready(t_pcb* pcb, op_code motivo, estado_pcb anterior){
     if(algoritmo_es_feedback() && motivo == INTERRUPCION){
         logear_cambio_estado(pcb,anterior,READY2);
-        agregar_pcb_a_cola(pcb,mutex_ready2,ready2_queue);
+        agregar_pcb_a_lista(pcb,mutex_ready2,ready2_queue);
+        /*if(list_is_empty(ready1_queue)) pthread_cancel(thread_clock);*/
     }else{
         logear_cambio_estado(pcb,anterior,READY1);
-        agregar_pcb_a_cola(pcb,mutex_ready1,ready1_queue);
+        agregar_pcb_a_lista(pcb,mutex_ready1,ready1_queue);
     }
+
+    printf(GRN"Cola de Ready1 <%s>: [ ",algoritmo_planificacion);
+    for(uint32_t i=0; i < list_size(ready1_queue); i++){
+        uint32_t pid = ((t_pcb*) list_get(ready1_queue,i))->pid;
+        printf("<%d> ",pid);
+    }
+    printf("]\n"WHT);
+
+    if(algoritmo_es_feedback()){
+        printf(GRN"Cola de Ready2 <%s>: [ ",algoritmo_planificacion);
+        for(uint32_t i=0; i < list_size(ready2_queue); i++){
+            uint32_t pid = ((t_pcb*) list_get(ready2_queue,i))->pid;
+            printf("<%d> ",pid);
+        }
+        printf("]\n"WHT);
+    }
+
     sem_post(&pcbs_en_ready);
 }
 
 t_pcb* quitar_de_ready(estado_pcb* ready){
-    if(!queue_is_empty(ready1_queue)){
+    if(!list_is_empty(ready1_queue)){
         *ready = READY1;
-        return quitar_pcb_de_cola(mutex_ready1,ready1_queue);
+        return quitar_pcb_de_lista(mutex_ready1,ready1_queue);
     }else{
-        if(algoritmo_es_feedback() && !queue_is_empty(ready2_queue)){
+        if(algoritmo_es_feedback() && !list_is_empty(ready2_queue)){
             *ready = READY2;
-            return quitar_pcb_de_cola(mutex_ready2,ready2_queue);
+            return quitar_pcb_de_lista(mutex_ready2,ready2_queue);
         }
     }
     pthread_mutex_lock(&mutex_logger);
@@ -582,4 +647,5 @@ char* traducir_estado_pcb(estado_pcb estado){
         case EXIT_S:                return "EXIT";
         default:                    return "ERROR - NOMBRE ESTADO INADECUADO";
     }
+
 }

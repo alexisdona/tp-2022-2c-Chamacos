@@ -9,7 +9,7 @@
 uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
-uint32_t ultimo_pid;
+uint32_t ultimo_pid=1;
 uint32_t quantum;
 uint32_t* tiempos_bloqueos;
 op_code motivo_bloqueo;
@@ -28,6 +28,7 @@ pthread_t thread_escucha_interrupt;
 pthread_t thread_clock;
 
 int socket_cpu_dispatch;
+int socket_memoria;
 
 //Semaforos de sincronizacion
 sem_t grado_multiprogramacion;
@@ -45,6 +46,7 @@ sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
 sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
+sem_t estructuras_administrativas_pcb_listas;
 
 //Mutex para proteger las colas
 pthread_mutex_t mutex_new;
@@ -60,8 +62,10 @@ pthread_mutex_t mutex_pid;
 
 t_queue* new_queue;
 t_queue* exit_queue;
-t_queue* ready1_queue;
-t_queue* ready2_queue;
+//t_queue* ready1_queue;
+//t_queue* ready2_queue;
+t_list* ready1_queue;
+t_list* ready2_queue;
 t_queue* blocked_screen_queue;
 t_queue* blocked_keyboard_queue;
 t_queue* blocked_page_fault_queue;
@@ -81,6 +85,8 @@ typedef enum {
     EXIT_S
 } estado_pcb;
 
+estado_pcb ready_anterior_pcb_running;
+
 //Obtiene el ip y puerto del kernel para iniciar el servidor, devuele el socket
 int levantar_servidor();
 
@@ -91,7 +97,7 @@ void *conexion_consola(void* socket_consola);
 void *conexion_dispatch(void* socket_dispatch);
 void *conexion_interrupt(void* socket_interrupt);
 void *conexion_memoria(void* socket_memoria);
-t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* segmentos, uint32_t socket_consola);
+t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos, uint32_t socket_consola);
 
 // Funciones de planificacion ===============================
 
@@ -106,6 +112,8 @@ void inicializar_semaforos_sincronizacion(uint32_t grado_multiprogramacion);
 void agregar_pcb_a_cola(t_pcb*,pthread_mutex_t, t_queue*);
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t, t_queue* cola);
 
+void agregar_pcb_a_lista(t_pcb*,pthread_mutex_t, t_list*);
+t_pcb* quitar_pcb_de_lista(pthread_mutex_t, t_list* cola);
 int algoritmo_planificacion_tiene_desalojo();
 
 //Funciones del planificador de largo plazo =================
@@ -136,4 +144,7 @@ char* traducir_estado_pcb(estado_pcb);
 registro_cpu* obtener_registro_por_bloqueo_pantalla_teclado(t_pcb* pcb);
 t_instruccion* obtener_instruccion_anterior(t_pcb* pcb);
 void actualizar_registro_por_teclado(t_pcb* pcb, uint32_t input);
+
+void crear_estructuras_memoria(t_pcb* pcb);
+
 #endif //TP_2022_2C_CHAMACOS_KERNEL_H

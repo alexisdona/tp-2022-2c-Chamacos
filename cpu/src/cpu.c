@@ -1,3 +1,4 @@
+
 #include "../headers/cpu.h"
 
 int main(int argc, char* argv[]){
@@ -9,31 +10,30 @@ int main(int argc, char* argv[]){
     logger = iniciar_logger(LOG_FILE,LOG_NAME);
     cpu_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
-
+    tlb = list_create();
 	lista_dispositivos = config_get_array_value(cpu_config,"DISPOSITIVOS_IO");
 
 	char* IP_MEMORIA = config_get_string_value(communication_config,"IP_MEMORIA");
     int PUERTO_MEMORIA = config_get_int_value(communication_config,"PUERTO_MEMORIA");
 	char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
 	int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
+    algoritmo_reemplazo_tlb = config_get_string_value(cpu_config, "REEMPLAZO_TLB");
+    entradas_max_tlb = config_get_int_value(cpu_config, "ENTRADAS_TLB");
 
-    int socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
-    enviar_handshake_inicial(socket_memoria,CPU_DISPATCH,logger);
-
-	pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t)socket_memoria);
-    pthread_detach(thread_escucha_memoria);
-
-	int socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
+    socket_kernel_dispatch = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_dispatch,CPU_DISPATCH,logger);
-
-	pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t)socket_kernel_dispatch);
+    pthread_create(&thread_escucha_dispatch, NULL, conexion_dispatch, (void*) (intptr_t) socket_kernel_dispatch);
     pthread_detach(thread_escucha_dispatch);
 
-	int socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
+	socket_kernel_interrupt = crear_conexion(IP_KERNEL,PUERTO_KERNEL);
     enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
-
-	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t)socket_kernel_interrupt);
+	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t) socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
+
+    socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
+    handshake_memoria(socket_memoria);
+    pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t )socket_memoria);
+    pthread_detach(thread_escucha_memoria);
 
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
 
@@ -64,6 +64,7 @@ void validar_argumentos_main(int argumentos){
 
 void* conexion_memoria(void* socket){
     int socket_memoria = (intptr_t) socket;
+
     while(socket_memoria != -1){
         op_code codigo_operacion = recibir_operacion(socket_memoria);
 	}
@@ -79,7 +80,7 @@ void* conexion_dispatch(void* socket){
 			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
-			enviar_PCB(socket_dispatch,pcb,estado_proceso);
+			enviar_PCB(socket_dispatch, pcb,estado_proceso);
 			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
 			pcb = NULL;
 		}else{
@@ -192,9 +193,19 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
 	return CONTINUA_PROCESO;
 }
 
-op_code operacion_MOV_IN(registro_cpu* registro,uint32_t direccion_logica){
+/** MOV_IN (Registro, Dirección Lógica): Lee el valor de memoria del segmento de Datos correspondiente
+ * a la Dirección Lógica y lo almacena en el Registro.
+ */
+
+op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
-	(*registro) = direccion_logica;
+    dir_fisica * direccion_fisica = obtener_direccion_fisica(direccion_logica);
+
+    if(direccion_fisica != NULL) {
+        uint32_t valor = leer_en_memoria(direccion_fisica);
+        log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
+        return CONTINUA_PROCESO;
+    }
 	return CONTINUA_PROCESO;
 }
 
@@ -239,5 +250,168 @@ void desalojo_proceso(){
 	sem_wait(&continuar_ciclo_instruccion);
 	estado_proceso = CONTINUA_PROCESO;
 	hubo_interrupcion = CONTINUA_PROCESO;
+}
+
+dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
+
+    uint32_t tamanio_maximo_segmento = entradas_por_tabla * tamanio_pagina;
+    uint32_t numero_segmento = floor(direccion_logica / tamanio_maximo_segmento);
+    uint32_t desplazamiento_segmento = direccion_logica % tamanio_maximo_segmento;
+    uint32_t numero_pagina = floor(desplazamiento_segmento / tamanio_pagina);
+    uint32_t desplazamiento_pagina = desplazamiento_segmento % tamanio_pagina;
+    uint32_t marco;
+    t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
+    if (desplazamiento_segmento > segmento->tamanio_segmento) {
+        enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
+        return NULL;
+    }
+
+
+    marco = tlb_obtener_marco(numero_pagina);
+    if (marco == -1 ) {
+       //TLB_MISS
+       log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->pid, numero_pagina));
+       uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, 0)))->indice_tabla_paginas;
+       marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
+       //  tlb_actualizar(numero_pagina, marco);
+     } else {
+       //TLB HIT
+       log_info(logger, string_from_format(GRN"TLB HIT para tbl en proceso %zu, numero de página %d y marco %d"RESET,pcb->pid, numero_pagina, marco));
+     }
+
+     dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
+     direccion_fisica->numero_pagina = numero_pagina;
+     direccion_fisica->marco = marco;
+     direccion_fisica->desplazamiento = desplazamiento_pagina;
+
+     return direccion_fisica;
+}
+
+void handshake_memoria(int conexion_memoria){
+    op_code codigo_operacion = recibir_operacion(conexion_memoria);
+    size_t tamanio_stream;
+    if (codigo_operacion == HANDSHAKE_CPU_MEMORIA) {
+        recv(conexion_memoria, &tamanio_stream, sizeof(size_t), 0); // no me importa en este caso
+        recv(conexion_memoria, &tamanio_pagina, sizeof(uint32_t), 0);
+        recv(conexion_memoria, &entradas_por_tabla, sizeof(uint32_t), 0);
+    }
+}
+
+////--------------------------------------------------------TLB------------------------------------------------------------------
+
+int tlb_obtener_marco(uint32_t numero_pagina) {
+    tlb_entrada * entrada_tlb;
+    if (list_size(tlb) > 0) {
+        for (int i=0; i < list_size(tlb); i++) {
+            entrada_tlb = list_get(tlb,i);
+            if (entrada_tlb->pagina == numero_pagina) {
+                entrada_tlb->veces_referenciada+=1;
+                return entrada_tlb->marco;
+            }
+        }
+    }
+    return -1;
+}
+
+void reemplazar_entrada_tlb(tlb_entrada* entrada) {
+    if (strcmp(algoritmo_reemplazo_tlb, "FIFO") ==0){
+        list_remove(tlb, 0);
+        list_add(tlb, entrada);
+    }
+    else {
+        list_sort(tlb, comparator);
+        list_remove(tlb, 0);
+        list_add(tlb, entrada);
+    }
+}
+
+void tlb_actualizar(uint32_t numero_pagina, uint32_t marco){
+    tlb_entrada* tlb_entrada = malloc(sizeof(tlb_entrada));
+    tlb_entrada ->marco = marco;
+    tlb_entrada ->pagina = numero_pagina;
+    tlb_entrada->veces_referenciada=1;
+    //si ahora es otra pagina la que referencia al marco porque se reemplazo por el otro
+    actualizar_entrada_marco_existente(numero_pagina, marco);
+    if(list_size(tlb) >= entradas_max_tlb){
+        log_info(logger, string_from_format(GRN"Ejecutando algoritmo de reemplazo %s para entrada en la tlb para proceso %zu, numero de pagina %d y marco %d"RESET,algoritmo_reemplazo_tlb, pcb->pid, numero_pagina, marco));
+        reemplazar_entrada_tlb(tlb_entrada);
+    }
+    else
+    {
+        log_info(logger, string_from_format(GRN"Agregando entrada en la tlb para proceso %zu, numero de pagina %d y marco %d"RESET, pcb->pid, numero_pagina, marco));
+        list_add(tlb, tlb_entrada);
+    }
+}
+
+static bool comparator (void* entrada1, void* entrada2) {
+    return (((tlb_entrada *) entrada1)->veces_referenciada) < (((tlb_entrada *) entrada2)->veces_referenciada); }
+
+void limpiar_tlb(){
+    list_clean(tlb);
+}
+
+/*
+ * Si el marco que me viene de memoria ya es una entrada en la tlb con otra pagina, le actualizo la página
+ * */
+void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
+    tlb_entrada * entrada;
+    for(int i=0; i< list_size(tlb);i++) {
+        entrada = list_get(tlb, i);
+        if (entrada->marco == marco && numero_pagina!= entrada->pagina) {
+            entrada->pagina = numero_pagina;
+            entrada->veces_referenciada=1;
+        }
+    }
+}
+
+uint32_t leer_en_memoria(dir_fisica * direccion_fisica) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = LEER_MEMORIA;
+    agregar_entero(paquete, direccion_fisica->marco);
+    agregar_entero(paquete, direccion_fisica->desplazamiento);
+    agregar_entero(paquete, direccion_fisica->numero_pagina);
+
+    enviar_paquete(paquete, socket_memoria);
+    eliminar_paquete(paquete);
+
+    uint32_t valor_leido;
+    int obtuve_valor = 0;
+    while (socket_memoria != -1 && obtuve_valor == 0) {
+        op_code cod_op = recibir_operacion(socket_memoria);
+        if(cod_op == LEER_MEMORIA){
+            void* buffer = recibir_buffer(socket_memoria);
+            memcpy(&valor_leido, buffer, sizeof(uint32_t));
+            obtuve_valor = 1;
+        }
+    }
+    return valor_leido;
+
+}
+
+uint32_t obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina) {
+
+    t_paquete * paquete = crear_paquete();
+    paquete->codigo_operacion = OBTENER_MARCO;
+    agregar_entero(paquete, pcb->pid);
+    agregar_entero(paquete, indice_tabla_paginas);
+    agregar_entero(paquete, numero_pagina);
+    enviar_paquete(paquete, socket_memoria);
+    eliminar_paquete(paquete);
+    uint32_t marco;
+
+    int obtuve_marco = 0;
+    while (socket_memoria != -1 && obtuve_marco == 0) {
+        op_code cod_op = recibir_operacion(socket_memoria);
+        printf("op: %d\n",cod_op);
+        if(cod_op == OBTENER_MARCO){                ;
+            void* buffer = recibir_buffer(socket_memoria);
+            memcpy(&marco, buffer, sizeof(uint32_t));
+            printf("\nmarco de memoria: %d\n", marco);
+            obtuve_marco = 1;
+        }
+        if(cod_op == -1) break;
+    }
+    printf("FIN MARCO MEMORIA \n");
+    return marco;
 }
 

@@ -41,7 +41,7 @@
 #define PANTALLA        100
 #define TECLADO         200
 
-#define CONNECTION_FILE "../../connection.config"
+#define CONNECTION_FILE "../connection.config"
 
 extern char* LOG_FILE;
 extern char* LOG_NAME;
@@ -95,7 +95,16 @@ typedef enum {
     BLOQUEAR_PROCESO_TECLADO,
     PAGE_FAULT,
     DESALOJAR_PROCESO,
-    FINALIZAR_PROCESO
+    FINALIZAR_PROCESO,
+    ACTUALIZAR_INDICE_TABLA_PAGINAS,
+    CREAR_ESTRUCTURAS_ADMIN,
+    ESCRIBIR_MEMORIA,
+    LEER_MEMORIA,
+    OBTENER_MARCO,
+    TERMINAR_PROCESO,
+    HANDSHAKE_CPU_MEMORIA,
+    SEGMENTATION_FAULT,
+    PAGE_FAULT_ATENDIDO
 } op_code;
 
 typedef struct{
@@ -107,6 +116,12 @@ typedef struct{
     op_code codigo_operacion;
     t_buffer* buffer;
 } t_paquete;
+
+typedef struct {
+    t_log* log;
+    int fd;
+    char* nombre;
+} t_procesar_conexion_attrs;
 
 
 //Funciones comunes a los modulos ===========================
@@ -179,7 +194,7 @@ void agregar_entero(t_paquete * paquete, uint32_t entero);
 t_list *deserializar_lista_instrucciones(void *stream, uint32_t tamanio_lista_instrucciones);
 
 //Obtiene los segmentos deserialiados
-t_list *deserializar_lista_segmentos(void *stream, uint32_t tamanio_lista_segmentos);
+t_list *deserializar_lista_segmentos(void *stream, uint32_t tamanio_tabla_segmentos);
 
 
 //Serializa el paquete para poder ser enviado

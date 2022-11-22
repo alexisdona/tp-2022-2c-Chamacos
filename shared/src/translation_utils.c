@@ -27,7 +27,7 @@ char* traducir_registro_cpu(registro_cpu registro){
 }
 
 char* traducir_dispositivo(dispositivo disp){
-    if(disp < PANTALLA) return lista_dispositivos[disp];
+    if(disp < PANTALLA)return lista_dispositivos[disp];
     else{
         if(disp == PANTALLA) return "PANTALLA";
         else if(disp == TECLADO) return "TECLADO";

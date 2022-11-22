@@ -26,10 +26,10 @@ void logear_instruccion(t_log* logger, t_instruccion* instruccion){
 
 registro_cpu* obtener_registro(t_pcb* pcb, registro_cpu registro){
     switch (registro){
-        case AX: return &(pcb->registros_pcb.registro_ax);
-        case BX: return &(pcb->registros_pcb.registro_bx);
-        case CX: return &(pcb->registros_pcb.registro_ax);
-        case DX: return &(pcb->registros_pcb.registro_ax);
+        case AX: return &(pcb->registros_pcb->registro_ax);
+        case BX: return &(pcb->registros_pcb->registro_bx);
+        case CX: return &(pcb->registros_pcb->registro_ax);
+        case DX: return &(pcb->registros_pcb->registro_ax);
         default: 
             printf(RED"Error al obtener el puntero del registro\n"WHT);
             exit(EXIT_FAILURE);

@@ -2,9 +2,31 @@
 #define TP_2022_2C_CHAMACOS_CPU_H
 
 #include "../../shared/headers/shared.h"
+#include <math.h>
 
 #define LOG_FILE "cpu.log"
 #define LOG_NAME "cpu_log"
+
+typedef struct
+{
+    uint32_t numero_pagina;
+    uint32_t marco;
+    uint32_t desplazamiento;
+
+} dir_fisica;
+
+typedef struct{
+    uint32_t segmento;
+    uint32_t pagina;
+    uint32_t marco;
+    uint32_t veces_referenciada;
+} tlb_entrada;
+
+int socket_kernel_dispatch, socket_kernel_interrupt, socket_memoria;
+
+uint32_t tamanio_pagina, entradas_por_tabla, entradas_max_tlb;
+t_list* tlb;
+char* algoritmo_reemplazo_tlb;
 
 t_config* cpu_config;
 t_config* communication_config;
@@ -46,5 +68,15 @@ op_code operacion_IO(dispositivo,uint32_t unidades_trabajo);
 op_code operacion_EXIT();
 void chequear_interrupcion();
 void desalojo_proceso();
+dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica);
+void handshake_memoria(int conexionMemoria);
+int tlb_obtener_marco(uint32_t numero_pagina);
+void reemplazar_entrada_tlb(tlb_entrada* entrada);
+void tlb_actualizar(uint32_t numero_pagina, uint32_t marco);
+void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco);
+static bool comparator (void*, void*);
+uint32_t leer_en_memoria(dir_fisica * direccion_fisica);
+uint32_t obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
+
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H
