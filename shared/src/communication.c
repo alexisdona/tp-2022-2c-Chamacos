@@ -158,6 +158,12 @@ void agregar_entero(t_paquete* paquete, uint32_t entero){
     paquete->buffer->size += sizeof(entero);
 }
 
+void agregar_entero8bytes(t_paquete* paquete, int entero){
+    paquete->buffer->stream = realloc(paquete->buffer->stream, paquete->buffer->size + sizeof(entero));
+    memcpy(paquete->buffer->stream + paquete->buffer->size, &entero, sizeof(entero));
+    paquete->buffer->size += sizeof(entero);
+}
+
 void agregar_segmento(t_paquete * paquete, void* segmento){
     paquete->buffer->stream = realloc(paquete->buffer->stream, paquete->buffer->size + sizeof(uint32_t)*2); //tamaño del segmento + indice de tabla de paginas del segmento
     memcpy(paquete->buffer->stream + paquete->buffer->size, segmento, sizeof(uint32_t));
@@ -459,4 +465,20 @@ void enviar_input_valor(uint32_t valor, int socket){
 	agregar_entero(paquete, valor);
 	enviar_paquete(paquete, socket);
 	eliminar_paquete(paquete);
+}
+
+void enviar_entero(int cliente_fd, uint32_t valor, op_code opCode) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = opCode;
+    agregar_entero(paquete, valor);
+    enviar_paquete(paquete, cliente_fd);
+    eliminar_paquete(paquete);
+}
+
+void enviar_entero8bytes(int cliente_fd, int valor, op_code opCode) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = opCode;
+    agregar_entero8bytes(paquete, valor);
+    enviar_paquete(paquete, cliente_fd);
+    eliminar_paquete(paquete);
 }

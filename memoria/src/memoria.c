@@ -96,20 +96,24 @@ void crear_espacio_usuario() {
 }
 
 uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento ) {
-    int cantidad_registros_tabla_segmentos = tamanio_segmento/tamanio_pagina;
+    int cantidad_registros_tabla_segmentos = MAX(tamanio_segmento/tamanio_pagina, 1);
     t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
 
-    for(int i=0; i<cantidad_registros_tabla_segmentos; i++) {
+    for(int i=0; i< cantidad_registros_tabla_segmentos; i++) {
         registro_tabla_paginas->frame = 0;
         registro_tabla_paginas->modificado = 0;
         registro_tabla_paginas->presencia = 0;
         registro_tabla_paginas->uso = 0;
         registro_tabla_paginas->posicion_swap = obtener_ultima_posicion_swap();
         list_add(registros_tabla_paginas, registro_tabla_paginas);
+        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->frame: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->frame);
+        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->modificado: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->modificado);
+        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->presencia: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->presencia);
+        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->uso: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->uso);
+        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->posicion_swap: %d\n", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->posicion_swap);
     }
     list_add(tabla_paginas, list_duplicate(registros_tabla_paginas));
     list_clean(registros_tabla_paginas);
-    free(registro_tabla_paginas);
     return list_size(tabla_paginas);
 }
 
@@ -134,7 +138,8 @@ void crear_archivo_swap() {
           uint32_t* apuntado=  str+ sizeof(uint32_t) *i;
          printf("\nvalor apuntado en posición del arhivo %d-->%d\n",i, *apuntado);
    }
-*/
+   */
+
     FILE *archivo_swap = fopen(path_swap, "wb");
     if (archivo_swap != NULL) {
         fwrite(str, sizeof (uint32_t), cantidad_bloques, archivo_swap);
@@ -199,6 +204,7 @@ void procesar_conexion(void* void_args) {
                 void* buffer_marco_leer_memoria = recibir_buffer(cliente_fd);
                 memcpy(&marco_leer_memoria, buffer_marco_leer_memoria, sizeof (uint32_t));
                 memcpy(&desplazamiento_leer_memoria, buffer_marco_leer_memoria + sizeof (uint32_t), sizeof(uint32_t));
+                printf("Me pidieron leer de memoria en el marco: %d", marco_leer_memoria);
                 uint32_t* valor_leido = (uint32_t *) (espacio_usuario_memoria +(marco_leer_memoria*tamanio_pagina+desplazamiento_leer_memoria));
                 enviar_entero(cliente_fd, *valor_leido, LEER_MEMORIA);
                 //falta actualizar el bit de uso en 1 en la tabla de paginas. Hay que recibir el indice de la tabla para saber cual es.
@@ -206,72 +212,34 @@ void procesar_conexion(void* void_args) {
             case OBTENER_MARCO:
                 printf("Me pidieron un marco");
                 printf(GRN"\n");
-                log_info(logger,"# OBTENIENDO MARCO #");
                 uint32_t cantidad_marcos_ocupados_proceso=0;
                 usleep(retardo_memoria*1000);
                 void* buffer_marco = recibir_buffer(cliente_fd);
                 uint32_t id_proceso_marco;
                 uint32_t nro_tabla_obtener_marco;
                 uint32_t numero_pag_obtener_marco;
-
                 int despl = 0;
-                uint32_t marco = 10;
+                uint32_t marco=0;
                 memcpy(&id_proceso_marco, buffer_marco+despl, sizeof(uint32_t));
                 despl+= sizeof(uint32_t);
                 memcpy(&nro_tabla_obtener_marco, buffer_marco+despl, sizeof(uint32_t));
                 despl+= sizeof(uint32_t);
                 memcpy(&numero_pag_obtener_marco, buffer_marco + despl, sizeof(uint32_t));
                 despl+= sizeof(uint32_t);
-                t_registro_tabla_paginas* registro_tabla_paginas =list_get(tabla_paginas, nro_tabla_obtener_marco);
+                t_registro_tabla_paginas * registro_tabla_paginas = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, nro_tabla_obtener_marco), numero_pag_obtener_marco));
 
                 if(registro_tabla_paginas->presencia) {
                     marco = registro_tabla_paginas->frame;
-                }/*
-                else {
-                    void *bloque = obtener_bloque_proceso_desde_swap(id_proceso_marco, numero_pag_obtener_marco);
-
-                    // primero validar que el proceso tenga marcos disponibles
-                    cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados(nro_tabla_primer_nivel_obtener_marco);
-                    if (cantidad_marcos_ocupados_proceso < marcos_por_proceso) {
-                        if(cantidad_marcos_ocupados_proceso == 0) {
-                            t_lista_circular* lista = list_create_circular();
-                            lista->pid = id_proceso_marco;
-                            list_add(lista_frames_procesos, lista);
-                        }
-                        uint32_t nro_frame_libre = obtener_numero_frame_libre();
-                        registro_segundo_nivel->uso = 1;
-                        registro_segundo_nivel->presencia = 1;
-                        registro_segundo_nivel->frame = nro_frame_libre;
-                        marco = registro_segundo_nivel->frame;
-                        t_frame* frame_auxiliar = malloc(sizeof(t_frame));
-                        frame_auxiliar->numero_frame = nro_frame_libre;
-                        frame_auxiliar->numero_pagina = numero_pag_obtener_marco;
-                        frame_auxiliar->uso = 1;
-                        //  frame_auxiliar->modificado = registro_segundo_nivel->modificado;
-                        frame_auxiliar->presencia = 1;
-                        t_lista_circular * lista_circular = obtener_lista_circular_del_proceso(id_proceso_marco);
-                        insertar_lista_circular(lista_circular, frame_auxiliar);
-
-                    } else {
-                        log_info(logger, string_from_format("Ejecutanto %s para reemplazo de página", algoritmo_reemplazo));
-                        printf(BLU"\n\nANTES DE ALGORITMO DE REEMPLAZO\n\n"RESET);
-                        imprimir_valores_paginacion_proceso(nro_tabla_primer_nivel_obtener_marco);
-                        marco = sustitucion_paginas(nro_tabla_primer_nivel_obtener_marco, numero_pag_obtener_marco, id_proceso_marco);
-                        pthread_mutex_unlock(&mutex_escritura);
-                    }
-                    pthread_mutex_lock(&mutex_escritura);
-                    memcpy(espacio_usuario_memoria + marco * tamanio_pagina, bloque, tamanio_pagina);
-                    pthread_mutex_unlock(&mutex_escritura);
                 }
-                */
-                printf(GRN"\n");
-                log_info(logger,"# ENVIANDO MARCO #");
-                printf(WHT"\n");
-                log_info(logger,string_from_format("#MARCO [%d]"));
-                printf(RESET"");
-                enviar_entero(cliente_fd, marco, OBTENER_MARCO);
+                else {
+                    cod_op = PAGE_FAULT;
+                    //aca hay que buscar un marco libre y asociarlo a la pagina.
+                }
+                printf("\nEnvio marco:%d", marco);
+                enviar_entero(cliente_fd, marco, cod_op);
                 break;
             case TERMINAR_PROCESO:
+                break;
             case -1:
                 log_info(logger, "El cliente se desconectó");
                 cliente_fd = -1;
@@ -293,14 +261,14 @@ void *conexion_kernel(void* socket){
         switch(codigo_operacion) {
             case CREAR_ESTRUCTURAS_ADMIN:
                 ;
-                t_pcb* pcb = recibir_PCB(socket_kernel);
                 log_info(logger, "creando estructuras administrativas");
-
+                t_pcb* pcb = recibir_PCB(socket_kernel);
                 for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
                     t_segmento * segmento = malloc(sizeof(t_segmento));
                     segmento = list_get(pcb->tabla_segmentos, i);
                     segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento)-1);
-
+                    log_info(logger, "segmento[%d]->tamaño: %d",i, segmento->tamanio_segmento);
+                    log_info(logger, "segmento[%d]->indice_tabla: %d", i, segmento->indice_tabla_paginas );
                 }
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
                 break;

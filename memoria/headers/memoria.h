@@ -6,6 +6,7 @@
 
 #define LOG_FILE "memoria.log"
 #define LOG_NAME "memoria_log"
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 typedef struct {
     uint32_t frame;

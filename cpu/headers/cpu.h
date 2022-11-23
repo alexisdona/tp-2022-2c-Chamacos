@@ -76,7 +76,7 @@ void tlb_actualizar(uint32_t numero_pagina, uint32_t marco);
 void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco);
 static bool comparator (void*, void*);
 uint32_t leer_en_memoria(dir_fisica * direccion_fisica);
-uint32_t obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
+int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
 
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H

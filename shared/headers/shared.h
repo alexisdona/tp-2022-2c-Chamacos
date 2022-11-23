@@ -233,6 +233,8 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion);
 t_pcb* recibir_PCB(int socket_desde);
 void enviar_interrupcion(int socket);
 void enviar_entero(int cliente_fd, uint32_t valor, op_code opCode);
+void enviar_entero8bytes(int cliente_fd, int valor, op_code opCode);
+void agregar_entero8bytes(t_paquete* paquete, int entero);
 
 
 #endif //TP_2022_1C_ECLIPSO_SHARED_H
