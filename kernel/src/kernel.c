@@ -12,11 +12,11 @@ int main(int argc, char* argv[]) {
     logger = iniciar_logger(LOG_FILE, LOG_NAME);
     kernel_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
-
+/*
     char* ip_memoria = config_get_string_value(communication_config, "IP_MEMORIA");
     int puerto_memoria = config_get_int_value(communication_config, "PUERTO_MEMORIA");
   //  socket_memoria = crear_conexion(ip_memoria, puerto_memoria);
-
+*/
     uint32_t grado_max_multiprogramacion = config_get_int_value(kernel_config,"GRADO_MAX_MULTIPROGRAMACION");
     lista_dispositivos = config_get_array_value(kernel_config,"DISPOSITIVOS_IO");
     char** lista_bloqueos = config_get_array_value(kernel_config,"TIEMPOS_IO");
@@ -65,7 +65,7 @@ void esperar_consolas(int socket_srv){
     while(1){
         pthread_t thread_escucha_consola;
         int socket_consola = esperar_cliente(socket_srv, logger);
-       // recibir_handshake_inicial(socket_consola,KERNEL,logger);
+        //recibir_handshake_inicial(socket_consola,KERNEL,logger);
         pthread_create(&thread_escucha_consola, NULL, conexion_consola, (void*)(intptr_t) socket_consola);
         pthread_detach(thread_escucha_consola);
     }
@@ -144,14 +144,16 @@ void* conexion_dispatch(void* socket){
 
             case BLOQUEAR_PROCESO_TECLADO:
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
-                agregar_pcb_a_cola(pcb,mutex_blocked_keyboard,blocked_keyboard_queue);
+                //agregar_pcb_a_cola(pcb,mutex_blocked_keyboard,blocked_keyboard_queue);
+                agregar_pcb_a_lista(pcb,mutex_blocked_keyboard,blocked_keyboard_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_TECLADO);
                 sem_post(&bloquear_por_teclado);
                 break;
 
             case BLOQUEAR_PROCESO_PANTALLA:
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
-                agregar_pcb_a_cola(pcb,mutex_blocked_screen,blocked_screen_queue);
+                //agregar_pcb_a_cola(pcb,mutex_blocked_screen,blocked_screen_queue);
+                agregar_pcb_a_lista(pcb,mutex_blocked_screen,blocked_screen_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_PANTALLA);
                 sem_post(&bloquear_por_pantalla);
                 break;
@@ -261,7 +263,6 @@ void *conexion_consola(void* socket){
                     logear_instruccion(logger,(t_instruccion*) list_get(instrucciones, i));
                 }
                 t_list* segmentos = recibir_lista_segmentos(socket_consola);
-
                 pthread_mutex_lock(&mutex_pid);
                 t_pcb* pcb = crear_estructura_pcb(instrucciones, segmentos, socket_consola);
                 pthread_mutex_unlock(&mutex_pid);
@@ -270,19 +271,21 @@ void *conexion_consola(void* socket){
                 log_info(logger,string_from_format(CYN"Se crea el proceso <%d> en NEW"WHT, pcb->pid));
                 pthread_mutex_unlock(&mutex_logger);
                 sem_post(&new_to_ready);
+                printf("Semaforo liberado\n");
                 break;
 
 			case INPUT_VALOR:
-				input_consola = recibir_valor(socket_consola);
+                ;
+				uint32_t input_consola = recibir_valor(socket_consola);
 				pthread_mutex_lock(&mutex_logger);
 				log_info(logger,string_from_format(BLU"Conexion Consola: Valor recibido de consola: %d"BLU,input_consola));
 				pthread_mutex_unlock(&mutex_logger);
-                sem_post(&desbloquear_teclado);
+                desbloquear_pcb_keyboard(socket_consola,input_consola);
 				break;
 
             case IMPRIMIR_VALOR:
                 log_info(logger,BLU"Conexion Consola: Valor impreso."WHT);
-                sem_post(&desbloquear_pantalla);
+                desbloquear_pcb_screen(socket_consola);
                 break;
 
             case -1:
@@ -318,7 +321,6 @@ t_pcb* crear_estructura_pcb(t_list* lista_instrucciones, t_list* tabla_segmentos
     pcb->socket_consola = socket_consola;
 
     ultimo_pid++;
-
     return pcb;
 }
 
@@ -339,8 +341,8 @@ void iniciar_planificacion(){
     if(string_contains(algoritmo_planificacion,"FEEDBACK")){
         ready2_queue = list_create();
     }
-    blocked_screen_queue = queue_create();
-    blocked_keyboard_queue = queue_create();
+    blocked_screen_queue = list_create();
+    blocked_keyboard_queue = list_create();
     blocked_page_fault_queue = queue_create();
 
     lista_indices_cola_bloqueados_io[cantidad_dispositivos];
@@ -393,19 +395,18 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&finish_process,0,0);
     sem_init(&continuar_conteo_quantum,0,0);
     sem_init(&enviar_pcb_a_cpu,0,0);
-    sem_init(&redirigir_proceso_bloqueado,0,0);
     sem_init(&bloquear_por_pantalla,0,0);
-    sem_init(&desbloquear_pantalla,0,0);
     sem_init(&bloquear_por_teclado,0,0);
-    sem_init(&desbloquear_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
     sem_init(&estructuras_administrativas_pcb_listas,0,1);
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
+    printf("PCB ... ");
     pthread_mutex_lock(&mutex);
     queue_push(cola,pcb);
     pthread_mutex_unlock(&mutex);
+    printf("Encolado\n");
 }
 
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t mutex, t_queue* cola){
@@ -541,42 +542,60 @@ void bloquear_proceso_segun_dispositivo(t_pcb* pcb){
     logear_cambio_estado(pcb,RUNNING,BLOQUEADO_IO);
 }
 
-//Las pantallas son independientes entre consolas, no "debiera" haber una cola
 void* manejador_estado_blocked_screen(void* x){
     t_pcb* pcb;
 
     while(1){
         sem_wait(&bloquear_por_pantalla);
-        pcb = quitar_pcb_de_cola(mutex_blocked_screen,blocked_screen_queue);
+        //pcb = quitar_pcb_de_cola(mutex_blocked_screen,blocked_screen_queue);
+        pcb = (t_pcb*) list_get(blocked_screen_queue,0);
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <PANTALLA>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
         uint32_t valor_a_imprimir = *obtener_registro_por_bloqueo_pantalla_teclado(pcb);
         log_info(logger,BLU"Conexion Consola: Solicitud de imprimir valor."WHT);
         enviar_imprimir_valor(valor_a_imprimir,pcb->socket_consola);
-        //Esto deberia estar en conexion-consola para debloquearlos
-        sem_wait(&desbloquear_pantalla);
-        agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
     }
 }
 
-//Los teclados son independientes entre consolas, no "debiera" haber una cola
+void desbloquear_pcb_screen(int socket){
+    t_pcb* pcb = obtener_pcb_de_lista_segun_socket(socket,blocked_screen_queue);        
+    agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
+}
+
 void* manejador_estado_blocked_keyboard(void* x){
     t_pcb* pcb;
 
     while(1){
         sem_wait(&bloquear_por_teclado);
-        pcb = quitar_pcb_de_cola(mutex_blocked_keyboard,blocked_keyboard_queue);
+        //pcb = quitar_pcb_de_queue(mutex_blocked_keyboard,blocked_keyboard_queue);
+        pcb = (t_pcb*) list_get(blocked_screen_queue,0);        
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <TECLADO>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
         log_info(logger,BLU"Conexion Consola: Solicitud de valor."WHT);
         enviar_codigo_op(pcb->socket_consola,INPUT_VALOR);
-        //Estas instrucciones debieran ir en conexion-consola para desbloquearlos
-        sem_wait(&desbloquear_teclado);
-        actualizar_registro_por_teclado(pcb,input_consola);
-        agregar_a_ready(pcb,BLOQUEAR_PROCESO_TECLADO,BLOQUEADO_TECLADO);
     }
+}
+
+void desbloquear_pcb_keyboard(int socket, int input_consola){
+    t_pcb* pcb = obtener_pcb_de_lista_segun_socket(socket,blocked_keyboard_queue);        
+    actualizar_registro_por_teclado(pcb,input_consola);
+    agregar_a_ready(pcb,BLOQUEAR_PROCESO_TECLADO,BLOQUEADO_TECLADO);
+}
+
+t_pcb* obtener_pcb_de_lista_segun_socket(int socket,t_list* lista_pcb){
+    uint32_t cantidad_elementos_lista = list_size(lista_pcb);
+    t_pcb* pcb;
+
+    for(uint32_t indice=0; indice < cantidad_elementos_lista; indice++){
+        pcb = list_get(lista_pcb,indice);
+        if(pcb->socket_consola == socket){
+            pcb = list_remove(lista_pcb,indice);
+            indice+=cantidad_elementos_lista;
+        }
+    }
+    return pcb;
 }
 
 uint32_t obtener_tiempo_bloqueo(t_pcb* pcb){

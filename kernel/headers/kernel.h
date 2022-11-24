@@ -7,7 +7,6 @@
 #define LOG_NAME "kernel_log"
 
 uint32_t cantidad_dispositivos;
-uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
 uint32_t ultimo_pid;
@@ -40,11 +39,8 @@ sem_t cpu_libre;
 sem_t finish_process;
 sem_t continuar_conteo_quantum;
 sem_t enviar_pcb_a_cpu;
-sem_t redirigir_proceso_bloqueado;
 sem_t bloquear_por_pantalla;
-sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
-sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
 sem_t estructuras_administrativas_pcb_listas;
 sem_t semaforos_dispositivos[];
@@ -62,12 +58,11 @@ pthread_mutex_t mutex_pid;
 pthread_mutex_t mutexes_blocked_io[];
 
 t_queue* new_queue;
-t_queue* exit_queue;
 t_list* ready1_queue;
 t_list* ready2_queue;
 t_queue* lista_indices_cola_bloqueados_io[];
-t_queue* blocked_screen_queue;
-t_queue* blocked_keyboard_queue;
+t_list* blocked_screen_queue;
+t_list* blocked_keyboard_queue;
 t_queue* blocked_page_fault_queue;
 t_queue* running_queue;
 t_queue* exit_queue;
@@ -134,6 +129,9 @@ void* clock_interrupt(void* socket);
 
 void* bloquear_pcb(void* indice);
 void bloquear_proceso_segun_dispositivo(t_pcb* pcb);
+t_pcb* obtener_pcb_de_lista_segun_socket(int socket,t_list* lista_pcb);
+void desbloquear_pcb_screen(int socket);
+void desbloquear_pcb_keyboard(int socket,int input);
 
 dispositivo obtener_dispositivo(t_pcb* pcb);
 uint32_t obtener_tiempo_bloqueo(t_pcb* pcb);
