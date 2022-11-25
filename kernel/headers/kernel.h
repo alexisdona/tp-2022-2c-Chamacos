@@ -6,13 +6,14 @@
 #define LOG_FILE "kernel.log"
 #define LOG_NAME "kernel_log"
 
+uint32_t cantidad_dispositivos;
 uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
-uint32_t ultimo_pid=1;
+uint32_t ultimo_pid;
 uint32_t quantum;
 uint32_t* tiempos_bloqueos;
-op_code motivo_bloqueo;
+
 char* algoritmo_planificacion;
 char** lista_dispositivos;
 
@@ -40,13 +41,13 @@ sem_t finish_process;
 sem_t continuar_conteo_quantum;
 sem_t enviar_pcb_a_cpu;
 sem_t redirigir_proceso_bloqueado;
-sem_t bloquear_por_io;
 sem_t bloquear_por_pantalla;
 sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
 sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
 sem_t estructuras_administrativas_pcb_listas;
+sem_t semaforos_dispositivos[];
 
 //Mutex para proteger las colas
 pthread_mutex_t mutex_new;
@@ -56,20 +57,18 @@ pthread_mutex_t mutex_running;
 pthread_mutex_t mutex_blocked_screen;
 pthread_mutex_t mutex_blocked_keyboard;
 pthread_mutex_t mutex_blocked_page_fault;
-pthread_mutex_t mutex_blocked_io;
 pthread_mutex_t mutex_exit;
 pthread_mutex_t mutex_pid;
+pthread_mutex_t mutexes_blocked_io[];
 
 t_queue* new_queue;
 t_queue* exit_queue;
-//t_queue* ready1_queue;
-//t_queue* ready2_queue;
 t_list* ready1_queue;
 t_list* ready2_queue;
+t_queue* lista_indices_cola_bloqueados_io[];
 t_queue* blocked_screen_queue;
 t_queue* blocked_keyboard_queue;
 t_queue* blocked_page_fault_queue;
-t_queue* blocked_io_queue;
 t_queue* running_queue;
 t_queue* exit_queue;
 
@@ -129,12 +128,16 @@ void* finalizador_procesos(void*);
 void* manejador_estado_ready(void*);
 void* manejador_estado_running(void*);
 void* manejador_estado_blocked_pf(void*);
-void* manejador_estado_blocked_io(void* x);
 void* manejador_estado_blocked_screen(void* x);
 void* manejador_estado_blocked_keyboard(void* x);
 void* clock_interrupt(void* socket);
 
-void obtener_dispositivo_tiempo_bloqueo(t_pcb* pcb, dispositivo* disp, uint32_t* tiempo_bloqueo);
+void* bloquear_pcb(void* indice);
+void bloquear_proceso_segun_dispositivo(t_pcb* pcb);
+
+dispositivo obtener_dispositivo(t_pcb* pcb);
+uint32_t obtener_tiempo_bloqueo(t_pcb* pcb);
+
 void agregar_a_ready(t_pcb* pcb, op_code motivo,estado_pcb anterior);
 t_pcb* quitar_de_ready(estado_pcb* cola_ready);
 int algoritmo_es_feedback();
