@@ -70,7 +70,6 @@ t_queue* blocked_screen_queue;
 t_queue* blocked_keyboard_queue;
 t_queue* blocked_page_fault_queue;
 t_queue* running_queue;
-t_queue* exit_queue;
 
 typedef enum {
     NEW,

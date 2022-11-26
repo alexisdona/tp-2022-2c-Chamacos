@@ -332,7 +332,6 @@ void iniciar_planificacion(){
 
     pthread_t dispatcher;
     pthread_t long_planner;
-
     new_queue = queue_create();
     exit_queue = queue_create();
     ready1_queue = list_create();
@@ -341,7 +340,6 @@ void iniciar_planificacion(){
     }
     blocked_screen_queue = queue_create();
     blocked_keyboard_queue = queue_create();
-    blocked_page_fault_queue = queue_create();
 
     lista_indices_cola_bloqueados_io[cantidad_dispositivos];
 
@@ -357,6 +355,8 @@ void iniciar_planificacion(){
     pthread_detach(long_planner);
     pthread_create(&dispatcher, NULL, planificador_corto_plazo, NULL);
     pthread_detach(dispatcher);
+    blocked_page_fault_queue = queue_create();
+
 }
 
 void inicializar_mutex(){

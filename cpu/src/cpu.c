@@ -272,9 +272,10 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
     if (marco == -1 ) {
        //TLB_MISS
        log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->pid, numero_pagina));
-       uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, 0)))->indice_tabla_paginas;
+       uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
        marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
        if (marco == -1) {
+           printf("\nCPU: marco=%d", marco);
            return NULL;
        }
        //  tlb_actualizar(numero_pagina, marco);
@@ -429,4 +430,5 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
         return marco;
     }
 }
+
 

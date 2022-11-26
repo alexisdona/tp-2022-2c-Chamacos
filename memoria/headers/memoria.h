@@ -9,6 +9,7 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 typedef struct {
+    uint32_t pid;
     uint32_t frame;
     uint modificado;
     uint uso;
@@ -32,9 +33,10 @@ uint32_t tamanio_pagina;
 uint32_t  entradas_por_tabla;
 uint32_t retardo_memoria;
 uint32_t tamanio_swap;
+uint32_t marcos_por_proceso;
 void* espacio_usuario_memoria;
 t_bitarray* frames_disponibles;
-void* bloque_frames_lilbres;
+void* bloque_frames_libres;
 char* algoritmo_reemplazo;
 char* path_swap;
 char* ip_kernel;
@@ -43,6 +45,7 @@ char* ip_cpu;
 int puerto_cpu;
 int socket_kernel;
 int socket_cpu;
+uint32_t puntero_swap = 0;
 
 pthread_t thread_escucha_kernel;
 pthread_t thread_escucha_cpu;
@@ -63,5 +66,13 @@ void escuchar_cliente(int socket_server, t_log* logger);
 void *conexion_kernel(void* socket);
 void *conexion_cpu(void* socket);
 void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t cantidad_entradas_tabla);
+void actualizar_puntero_swap();
+int obtener_numero_frame_libre();
+uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid);
+void* obtener_bloque_proceso_desde_swap(uint32_t posicion_swap);
+uint32_t obtener_cantidad_marcos_ocupados_proceso(uint32_t id_proceso_marco);
+void enviar_page_fault_cpu(int cliente_fd, op_code cod_op, int marco);
+void buscar_frame_libre_proceso(uint32_t id_proceso_marco, t_registro_tabla_paginas *registro_tabla_paginas);
+void enviar_marco(int cliente_fd, int marco);
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H
