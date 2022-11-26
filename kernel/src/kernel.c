@@ -145,7 +145,9 @@ void* conexion_dispatch(void* socket){
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 dispositivo io = obtener_dispositivo(pcb);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_IO);
-                sem_post(&semaforos_dispositivos[io]);
+                agregar_pcb_a_lista(pcb,mutex_blocked_io,blocked_io_list);
+                sem_t* sem = list_get(semaforos_dispositivos,io);
+                sem_post(sem);
                 break;
 
             case BLOQUEAR_PROCESO_PANTALLA:
@@ -368,12 +370,6 @@ void inicializar_mutex(){
 }
 
 void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
-    semaforos_dispositivos[cantidad_dispositivos];
-
-    for(uint32_t i=0; i<cantidad_dispositivos; i++){
-        sem_init(&semaforos_dispositivos[i],0,0);
-    }
-
     sem_init(&grado_multiprogramacion,0,multiprogramacion);
     sem_init(&new_process,0,0);
     sem_init(&new_to_ready,0,0);
@@ -386,6 +382,14 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&bloquear_por_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
     sem_init(&estructuras_administrativas_pcb_listas,0,1);
+
+    semaforos_dispositivos = list_create();
+
+    for(uint32_t i=0; i<cantidad_dispositivos; i++){
+        sem_t* semaforo = malloc(sizeof(sem_t));
+        sem_init(semaforo,0,0);
+        list_add(semaforos_dispositivos,semaforo);
+    }
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
@@ -501,14 +505,14 @@ void* bloquear_pcb(void* indice){
     dispositivo io = (intptr_t) indice;
     uint32_t tiempo_bloqueado;
     t_pcb* pcb;
+    sem_t* semaforo = list_get(semaforos_dispositivos,io);
 
     while(1){
-        sem_wait(&semaforos_dispositivos[io]);
+        sem_wait(semaforo);
         printf("Hilo: %s\n\n",traducir_dispositivo(io));
-    
-        //pthread_mutex_lock(&mutex_blocked_io);
+        pthread_mutex_lock(&mutex_blocked_io);
         pcb = buscar_pcb_a_bloquear(io);
-        //pthread_mutex_unlock(&mutex_blocked_io);
+        pthread_mutex_unlock(&mutex_blocked_io);
 
         tiempo_bloqueado = obtener_tiempo_bloqueo(pcb);
 
@@ -526,6 +530,7 @@ t_pcb* buscar_pcb_a_bloquear(dispositivo io){
     printf("a");
     for(uint32_t i=0; i<list_size(blocked_io_list); i++){
         pcb = list_get(blocked_io_list,i);
+        printf("PID: %d - %d",pcb->pid,i);
         dispositivo disp = obtener_dispositivo(pcb);
         if(disp == io) {
             pcb = list_remove(blocked_io_list,i);
