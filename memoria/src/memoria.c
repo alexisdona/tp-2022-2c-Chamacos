@@ -210,9 +210,10 @@ void procesar_conexion(void* void_args) {
                 break;
             case OBTENER_MARCO:
                 printf(GRN"\n");
+                void* buffer_marco = recibir_buffer(cliente_fd);
+                printf("Recibi buffer!!\n");
                 uint32_t cantidad_marcos_ocupados_proceso=0;
                 usleep(retardo_memoria*1000);
-                void* buffer_marco = recibir_buffer(cliente_fd);
                 uint32_t id_proceso_marco;
                 uint32_t nro_tabla_obtener_marco;
                 uint32_t numero_pag_obtener_marco;
@@ -226,11 +227,12 @@ void procesar_conexion(void* void_args) {
                 t_registro_tabla_paginas * registro_tabla_paginas = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, nro_tabla_obtener_marco), numero_pag_obtener_marco));
 
                 if(registro_tabla_paginas->presencia) {
+                    log_info(logger,"Presencia");
                     marco = registro_tabla_paginas->frame;
                     enviar_marco(cliente_fd, marco);
                 } else {
                     cod_op = PAGE_FAULT;
-                    printf("MEMORIA --> Enviando page_fault");
+                    log_info(logger,"MEMORIA --> Enviando page_fault");
                     enviar_page_fault_cpu(cliente_fd, cod_op, marco);
                     buscar_frame_libre_proceso(id_proceso_marco, registro_tabla_paginas);
                 }
@@ -289,7 +291,8 @@ void *conexion_kernel(void* socket){
                 }
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
                 break;
-
+            default:
+                break;
         }
     }
 }

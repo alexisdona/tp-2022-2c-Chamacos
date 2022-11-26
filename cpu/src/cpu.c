@@ -199,7 +199,7 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
 
 op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
-    dir_fisica * direccion_fisica = obtener_direccion_fisica(direccion_logica);
+    dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
 
     if(direccion_fisica != NULL) {
         uint32_t valor = leer_en_memoria(direccion_fisica);
@@ -275,7 +275,7 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
        uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
        marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
        if (marco == -1) {
-           printf("\nCPU: marco=%d", marco);
+           printf("\nCPU: marco=%d\n", marco);
            return NULL;
        }
        //  tlb_actualizar(numero_pagina, marco);
@@ -418,7 +418,7 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
                 obtuve_marco = 1;
                 break;
             case PAGE_FAULT:
-                printf("\nHUBO PAGE_FAULT\n");
+                log_info(logger,"HUBO PAGE_FAULT");
                 pcb->program_counter--;
                 enviar_PCB(socket_kernel_dispatch, pcb, PAGE_FAULT);
                 hubo_page_fault = 1;

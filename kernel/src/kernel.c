@@ -232,7 +232,7 @@ void *conexion_memoria(void* socket){
                 ;
                 t_pcb *pcb = recibir_PCB(socket_memoria);
                 agregar_a_ready(pcb,PCB,NEW);
-                sem_post(&estructuras_administrativas_pcb_listas);                
+                sem_post(&estructuras_administrativas_pcb_listas);
                 break;
             case PAGE_FAULT_ATENDIDO:
                 break;
@@ -399,7 +399,7 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&bloquear_por_teclado,0,0);
     sem_init(&desbloquear_teclado,0,0);
     sem_init(&bloquear_por_pf,0,0);
-    sem_init(&estructuras_administrativas_pcb_listas,0,1);
+    sem_init(&estructuras_administrativas_pcb_listas,0,0);
 }
 
 void agregar_pcb_a_cola(t_pcb* pcb,pthread_mutex_t mutex, t_queue* cola){
@@ -449,6 +449,7 @@ void pcb_a_dispatcher(){
         sem_wait(&grado_multiprogramacion);
         t_pcb* pcb = quitar_pcb_de_cola(mutex_new,new_queue);
         enviar_PCB(socket_memoria, pcb, CREAR_ESTRUCTURAS_ADMIN);
+        sem_wait(&estructuras_administrativas_pcb_listas);
     }
 }
 
