@@ -337,8 +337,8 @@ void iniciar_planificacion(){
         ready2_list = list_create();
     }
 
-    blocked_io_list = list_create();
     blocked_page_fault_queue = queue_create();
+    blocked_io_list = list_create();
     blocked_screen_list = list_create();
     blocked_keyboard_list = list_create();
 
@@ -349,6 +349,8 @@ void iniciar_planificacion(){
     pthread_detach(long_planner);
     pthread_create(&dispatcher, NULL, planificador_corto_plazo, NULL);
     pthread_detach(dispatcher);
+
+    
 }
 
 void inicializar_mutex(){
