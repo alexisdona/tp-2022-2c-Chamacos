@@ -83,11 +83,11 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, ui
 void* obtener_bloque_proceso_desde_swap(uint32_t posicion_swap);
 uint32_t obtener_cantidad_marcos_ocupados_proceso(uint32_t id_proceso_marco);
 //void enviar_page_fault_cpu(int cliente_fd, op_code cod_op, int marco);
-void buscar_frame_libre_proceso(uint32_t id_proceso_marco, t_registro_tabla_paginas* registro_tabla_paginas);
+void buscar_frame_libre_proceso(t_registro_tabla_paginas* registro_tabla_paginas);
 void enviar_marco(int cliente_fd, int marco);
 
 void* buscar_marcos_para_procesos(void*);
-void actualizar_lista_frames_pendientes(uint32_t pid,t_registro_tabla_paginas* registro);
-void obtener_tupla_elementos_lista_frames_pendientes(uint32_t* pid,t_registro_tabla_paginas* registro);
+void actualizar_lista_frames_pendientes(t_registro_tabla_paginas* registro);
+t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(t_registro_tabla_paginas* registro);
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

@@ -398,7 +398,7 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
         switch(cod_op) {
             case OBTENER_MARCO:
                 ;
-                recv(socket_memoria, &marco, sizeof(int), 0 );
+                marco = recibir_valor(socket_memoria);
                 log_info(logger,GRN"MARCO DE MEMORIA #: %d", marco );
                 break;
             case PAGE_FAULT:

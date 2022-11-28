@@ -252,7 +252,7 @@ void procesar_conexion(void* args) {
                     log_info(logger,"MEMORIA --> Enviando page_fault");
                     //enviar_page_fault_cpu(cliente_fd, cod_op, marco);
                     //enviar_page_fault_cpu(socket_cpu,marco);
-                    actualizar_lista_frames_pendientes(id_proceso_marco,registro_tabla_paginas);
+                    actualizar_lista_frames_pendientes(registro_tabla_paginas);
                     sem_post(&buscar_frame);
                     enviar_codigo_op(socket_cpu,PAGE_FAULT);
                 }
@@ -275,9 +275,9 @@ void enviar_marco(int cliente_fd, int marco) {
     enviar_entero8bytes(cliente_fd, marco, OBTENER_MARCO);
 }
 
-void buscar_frame_libre_proceso(uint32_t id_proceso_marco, t_registro_tabla_paginas *registro_tabla_paginas) {
+void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas) {
     int frame_libre = obtener_numero_frame_libre();
-    uint32_t cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados_proceso(id_proceso_marco);
+    uint32_t cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados_proceso(registro_tabla_paginas->pid);
     if (marcos_por_proceso > cantidad_marcos_ocupados_proceso || frame_libre >= 0 ) {
         void* pagina_swap = obtener_bloque_proceso_desde_swap(registro_tabla_paginas->posicion_swap);
         memcpy(espacio_usuario_memoria + (frame_libre * tamanio_pagina), pagina_swap, tamanio_pagina);
@@ -369,26 +369,25 @@ uint32_t obtener_cantidad_marcos_ocupados_proceso(uint32_t id_proceso_marco) {
 }
 
 void* buscar_marcos_para_procesos(void* args){
-    uint32_t id_proceso_marco;
-    t_registro_tabla_paginas* registro_tablas_paginas;
+
+    t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
 
     while(1){
         sem_wait(&buscar_frame);
-        obtener_tupla_elementos_lista_frames_pendientes(&id_proceso_marco,registro_tablas_paginas);
-        buscar_frame_libre_proceso(id_proceso_marco, registro_tablas_paginas);
+        registro_tabla_paginas = obtener_tupla_elementos_lista_frames_pendientes(registro_tabla_paginas);
+        buscar_frame_libre_proceso(registro_tabla_paginas);
     }
 }
 
-void actualizar_lista_frames_pendientes(uint32_t pid,t_registro_tabla_paginas* registro){
+void actualizar_lista_frames_pendientes(t_registro_tabla_paginas* registro){
     pthread_mutex_lock(&mutex_listas_frames_pendientes);
-    list_add(lista_pid_frame,pid);
     list_add(lista_pid_registro_tabla_paginas,registro);
     pthread_mutex_unlock(&mutex_listas_frames_pendientes);
 }
 
-void obtener_tupla_elementos_lista_frames_pendientes(uint32_t* pid,t_registro_tabla_paginas* registro){
+t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(t_registro_tabla_paginas* registro){
     pthread_mutex_lock(&mutex_listas_frames_pendientes);
-    pid = list_remove(lista_pid_frame,0);
     registro = list_remove(lista_pid_registro_tabla_paginas,0);
     pthread_mutex_unlock(&mutex_listas_frames_pendientes);
+    return registro;
 }
