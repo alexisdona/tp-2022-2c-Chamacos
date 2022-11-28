@@ -161,7 +161,6 @@ void* conexion_dispatch(void* socket){
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 agregar_pcb_a_lista(pcb,mutex_blocked_keyboard,blocked_keyboard_list);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_TECLADO);
-                printf("TAM SCREEN:%d - TAM KEYB:%d\n",list_size(blocked_screen_list),list_size(blocked_keyboard_list));
                 sem_post(&bloquear_por_teclado);
                 break;
 
@@ -351,7 +350,6 @@ void iniciar_planificacion(){
     pthread_detach(long_planner);
     pthread_create(&dispatcher, NULL, planificador_corto_plazo, NULL);
     pthread_detach(dispatcher);
-
 
 }
 

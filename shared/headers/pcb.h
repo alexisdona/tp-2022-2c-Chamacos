@@ -24,6 +24,7 @@ typedef struct {
   uint32_t socket_consola;
 } t_pcb;
 
+uint32_t size_of_PCB();
 
 #endif //TP_2022_2C_GECK_PCB_H
 

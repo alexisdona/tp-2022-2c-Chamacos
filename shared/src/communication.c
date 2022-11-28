@@ -373,10 +373,15 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
     eliminar_paquete(paquete);
 }
 
+uint32_t size_of_PCB(){
+  return sizeof(uint32_t)*8 + sizeof(t_list)*2;
+}
+
 t_pcb* recibir_PCB(int socket_desde){
 
-    t_pcb* pcb = malloc(sizeof(t_pcb));
-    t_registros_pcb* registros_pcb = malloc(sizeof(registros_pcb));
+    //t_pcb* pcb = malloc(sizeof(t_pcb));
+    t_pcb* pcb = malloc(size_of_PCB());
+    //t_registros_pcb* registros_pcb = malloc(sizeof(registros_pcb));
     t_list* lista_instrucciones = list_create();
     t_list* tabla_segmentos = list_create();
     void* buffer;
@@ -393,19 +398,25 @@ t_pcb* recibir_PCB(int socket_desde){
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
     pcb->program_counter = auxiliar;
 
-    recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    registros_pcb->registro_ax = auxiliar;
+    pcb->registros_pcb = malloc(sizeof(t_registros_pcb));
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    registros_pcb->registro_bx = auxiliar;
+    pcb->registros_pcb->registro_ax = auxiliar;
+    //registros_pcb->registro_ax = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    registros_pcb->registro_cx = auxiliar;
+    pcb->registros_pcb->registro_bx = auxiliar;
+    //registros_pcb->registro_bx = auxiliar;
 
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
-    registros_pcb->registro_dx = auxiliar;
+    pcb->registros_pcb->registro_cx = auxiliar;
+    //registros_pcb->registro_cx = auxiliar;
 
-    pcb->registros_pcb = registros_pcb;
+    recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
+    pcb->registros_pcb->registro_dx = auxiliar;
+    //registros_pcb->registro_dx = auxiliar;
+
+    //pcb->registros_pcb = registros_pcb;
 
     //recibo primero la cantidad de elementos de la lista de instrucciones
     recv(socket_desde, &auxiliar , sizeof(uint32_t), 0 );
@@ -440,8 +451,18 @@ void enviar_codigo_op(int socket, op_code codigo){
 
 void enviar_imprimir_valor(uint32_t numero, int socket){
 	op_code codigo = IMPRIMIR_VALOR;
-	t_paquete* paquete = crear_paquete();
-	paquete->codigo_operacion = codigo;
+    enviar_numero(socket,codigo,numero);
+}
+
+void enviar_page_fault_cpu(int cliente_fd, int marco) {
+    op_code codigo = PAGE_FAULT;
+    enviar_numero(cliente_fd,codigo, marco);
+    //enviar_entero8bytes(cliente_fd, marco, cod_op);
+}
+
+void enviar_numero(int socket, op_code codigo_op, uint32_t numero){
+    t_paquete* paquete = crear_paquete();
+	paquete->codigo_operacion = codigo_op;
 	agregar_entero(paquete, numero);
 	enviar_paquete(paquete, socket);
 	eliminar_paquete(paquete);

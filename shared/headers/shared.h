@@ -41,7 +41,7 @@
 #define PANTALLA        100
 #define TECLADO         200
 
-#define CONNECTION_FILE "../connection.config"
+#define CONNECTION_FILE "../../connection.config"
 
 extern char* LOG_FILE;
 extern char* LOG_NAME;
@@ -220,6 +220,7 @@ t_list* recibir_lista_segmentos(int socket);
 
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
 
+void enviar_numero(int socket, op_code codigo_op, uint32_t numero);
 void enviar_imprimir_valor(uint32_t numero, int socket);
 uint32_t recibir_valor(int socket);
 uint32_t deserializar_entero(void* stream);

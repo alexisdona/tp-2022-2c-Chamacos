@@ -235,9 +235,10 @@ void procesar_conexion(void* void_args) {
                     marco = registro_tabla_paginas->frame;
                     enviar_marco(cliente_fd, marco);
                 } else {
-                    cod_op = PAGE_FAULT;
+                    //cod_op = PAGE_FAULT;
                     log_info(logger,"MEMORIA --> Enviando page_fault");
-                    enviar_page_fault_cpu(cliente_fd, cod_op, marco);
+                    //enviar_page_fault_cpu(cliente_fd, cod_op, marco);
+                    enviar_page_fault_cpu(cliente_fd,marco);
                     buscar_frame_libre_proceso(id_proceso_marco, registro_tabla_paginas);
                 }
                 break;
@@ -271,10 +272,6 @@ void buscar_frame_libre_proceso(uint32_t id_proceso_marco, t_registro_tabla_pagi
 
     }
     enviar_codigo_op(socket_kernel, PAGE_FAULT_ATENDIDO);
-}
-
-void enviar_page_fault_cpu(int cliente_fd, op_code cod_op, int marco) {
-    enviar_entero8bytes(cliente_fd, marco, cod_op);
 }
 
 
