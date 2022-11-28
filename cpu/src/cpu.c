@@ -207,7 +207,7 @@ op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
         return CONTINUA_PROCESO;
     }
 
-	return PAGE_FAULT;
+	return estado_proceso;
 }
 
 op_code operacion_MOV_OUT(uint32_t direccion_logica,registro_cpu registro){
@@ -264,7 +264,9 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
 
     if (desplazamiento_segmento > segmento->tamanio_segmento) {
-        enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
+        estado_proceso = SEGMENTATION_FAULT;
+        log_info(logger,"Estado proceso -> SEG. FAULT");
+        //enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
         return NULL;
     }
 
@@ -416,7 +418,9 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
             case PAGE_FAULT:
                 log_info(logger,"HUBO PAGE_FAULT");
                 pcb->program_counter--;
-                enviar_PCB(socket_kernel_dispatch, pcb, PAGE_FAULT);
+                estado_proceso=PAGE_FAULT;
+                log_info(logger,"Estado proceso -> PAGE FAULT");
+                //enviar_PCB(socket_kernel_dispatch, pcb, PAGE_FAULT);
                 hubo_page_fault = 1;
                 marco = -1;
                 break;

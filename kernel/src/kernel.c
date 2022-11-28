@@ -168,7 +168,7 @@ void* conexion_dispatch(void* socket){
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 agregar_pcb_a_cola(pcb,mutex_blocked_page_fault,blocked_page_fault_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_PAGE_FAULT);
-                sem_post(&bloquear_por_pf);
+                sem_post(&atender_pf);
                 break;
 
             case FINALIZAR_PROCESO:
@@ -237,8 +237,8 @@ void *conexion_memoria(void* socket){
                 break;
             case PAGE_FAULT_ATENDIDO:
                 ;
-                t_pcb* pcb_page_fault_atendido = quitar_pcb_de_cola(mutex_blocked_page_fault, blocked_page_fault_queue);
-                agregar_a_ready(pcb_page_fault_atendido, PCB, BLOQUEADO_PAGE_FAULT);
+                sem_wait(&atender_pf);
+                sem_post(&desbloquear_por_pf);
                 break;
 
             default:
@@ -378,7 +378,8 @@ void inicializar_semaforos_sincronizacion(uint32_t multiprogramacion){
     sem_init(&enviar_pcb_a_cpu,0,0);
     sem_init(&bloquear_por_pantalla,0,0);
     sem_init(&bloquear_por_teclado,0,0);
-    sem_init(&bloquear_por_pf,0,0);
+    sem_init(&desbloquear_por_pf,0,0);
+    sem_init(&atender_pf,0,0);
     sem_init(&estructuras_administrativas_pcb_listas,0,1);
 
     semaforos_dispositivos = list_create();
@@ -495,8 +496,9 @@ void* manejador_estado_ready(void* x){
 }
 
 void* manejador_estado_blocked_pf(void* x){
-    sem_wait(&bloquear_por_pf);
-
+    sem_wait(&desbloquear_por_pf);
+    t_pcb* pcb_page_fault_atendido = quitar_pcb_de_cola(mutex_blocked_page_fault, blocked_page_fault_queue);
+    agregar_a_ready(pcb_page_fault_atendido, PCB, BLOQUEADO_PAGE_FAULT);
 }
 
 void* bloquear_pcb(void* indice){

@@ -41,7 +41,8 @@ sem_t continuar_conteo_quantum;
 sem_t enviar_pcb_a_cpu;
 sem_t bloquear_por_pantalla;
 sem_t bloquear_por_teclado;
-sem_t bloquear_por_pf;
+sem_t desbloquear_por_pf;
+sem_t atender_pf;
 sem_t estructuras_administrativas_pcb_listas;
 
 t_list* semaforos_dispositivos;
