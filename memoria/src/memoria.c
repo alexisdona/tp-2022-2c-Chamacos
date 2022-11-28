@@ -19,6 +19,8 @@ int main(int argc, char* argv[]){
     enviar_handshake_inicial(socket_kernel, MEMORIA, logger );
     pthread_create(&thread_escucha_kernel, NULL, conexion_kernel, (void*) (intptr_t) socket_kernel);
     pthread_detach(thread_escucha_kernel);
+    
+    //pthread_create(&buscador_marcos, NULL, buscar);
 
     socket_srv_memoria = levantar_servidor();
     log_info(logger, "Esperando CPU");
@@ -173,31 +175,24 @@ void mostrar_contenido_archivo_swap() {
 }
 
 void escuchar_cliente(int socket_server, t_log* logger) {
-    int cliente = esperar_cliente(socket_server, logger);
-    if (cliente != -1) {
+    socket_cpu = esperar_cliente(socket_server, logger);
+    if (socket_cpu != -1) {
         pthread_t hilo;
-        t_procesar_conexion_attrs* attrs = malloc(sizeof(t_procesar_conexion_attrs));
-        attrs->log = logger;
-        attrs->fd = cliente;
-        pthread_create(&hilo, NULL, (void*) procesar_conexion, (void*) attrs);
+        pthread_create(&hilo, NULL, (void*) procesar_conexion, NULL);
         pthread_detach(hilo);
     }
 
 }
 
-void procesar_conexion(void* void_args) {
+void procesar_conexion(void* args) {
     printf("se conecta un cliente.\n");
-    t_procesar_conexion_attrs* attrs = (t_procesar_conexion_attrs*) void_args;
-    t_log* logger = attrs->log;
-    int cliente_fd = attrs->fd;
-    free(attrs);
-    handshake_cpu_memoria(cliente_fd, tamanio_pagina, entradas_por_tabla);
+    handshake_cpu_memoria(socket_cpu, tamanio_pagina, entradas_por_tabla);
 
-    while(cliente_fd != -1) {
-        op_code cod_op = recibir_operacion(cliente_fd);
+    while(socket_cpu != -1) {
+        op_code cod_op = recibir_operacion(socket_cpu);
         switch (cod_op) {
             case MENSAJE:
-                recibir_mensaje(cliente_fd, logger);
+                recibir_mensaje(socket_cpu, logger);
                 break;
             case ESCRIBIR_MEMORIA:
                 break;
@@ -205,17 +200,17 @@ void procesar_conexion(void* void_args) {
                 ;
                 uint32_t marco_leer_memoria;
                 uint32_t desplazamiento_leer_memoria;
-                void* buffer_marco_leer_memoria = recibir_buffer(cliente_fd);
+                void* buffer_marco_leer_memoria = recibir_buffer(socket_cpu);
                 memcpy(&marco_leer_memoria, buffer_marco_leer_memoria, sizeof (uint32_t));
                 memcpy(&desplazamiento_leer_memoria, buffer_marco_leer_memoria + sizeof (uint32_t), sizeof(uint32_t));
                 printf("Me pidieron leer de memoria en el marco: %d", marco_leer_memoria);
                 uint32_t* valor_leido = (uint32_t *) (espacio_usuario_memoria +(marco_leer_memoria*tamanio_pagina+desplazamiento_leer_memoria));
-                enviar_entero(cliente_fd, *valor_leido, LEER_MEMORIA);
+                enviar_entero(socket_cpu, *valor_leido, LEER_MEMORIA);
                 //falta actualizar el bit de uso en 1 en la tabla de paginas. Hay que recibir el indice de la tabla para saber cual es.
                 break;
             case OBTENER_MARCO:
                 printf(GRN"\n");
-                void* buffer_marco = recibir_buffer(cliente_fd);
+                void* buffer_marco = recibir_buffer(socket_cpu);
                 uint32_t cantidad_marcos_ocupados_proceso=0;
                 usleep(retardo_memoria*1000);
                 uint32_t id_proceso_marco;
@@ -233,12 +228,12 @@ void procesar_conexion(void* void_args) {
                 if(registro_tabla_paginas->presencia) {
                     log_info(logger,"Presencia");
                     marco = registro_tabla_paginas->frame;
-                    enviar_marco(cliente_fd, marco);
+                    enviar_marco(socket_cpu, marco);
                 } else {
                     //cod_op = PAGE_FAULT;
                     log_info(logger,"MEMORIA --> Enviando page_fault");
                     //enviar_page_fault_cpu(cliente_fd, cod_op, marco);
-                    enviar_page_fault_cpu(cliente_fd,marco);
+                    enviar_page_fault_cpu(socket_cpu,marco);
                     buscar_frame_libre_proceso(id_proceso_marco, registro_tabla_paginas);
                 }
                 break;
@@ -246,7 +241,7 @@ void procesar_conexion(void* void_args) {
                 break;
             case -1:
                 log_info(logger, "El cliente se desconectó");
-                cliente_fd = -1;
+                socket_cpu = -1;
                 break;
             default:
                 printf(RED"codigo operacion %d"RESET,cod_op);

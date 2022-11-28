@@ -374,13 +374,13 @@ void enviar_PCB(int socket_destino, t_pcb* pcb, op_code codigo_operacion) {
 }
 
 uint32_t size_of_PCB(){
-  return sizeof(uint32_t)*8 + sizeof(t_list)*2;
+  return sizeof(uint32_t)*7 + sizeof(t_list)*2;
 }
 
 t_pcb* recibir_PCB(int socket_desde){
 
-    //t_pcb* pcb = malloc(sizeof(t_pcb));
-    t_pcb* pcb = malloc(size_of_PCB());
+    t_pcb* pcb = malloc(sizeof(t_pcb));
+    //t_pcb* pcb = malloc(size_of_PCB());
     //t_registros_pcb* registros_pcb = malloc(sizeof(registros_pcb));
     t_list* lista_instrucciones = list_create();
     t_list* tabla_segmentos = list_create();
@@ -454,9 +454,9 @@ void enviar_imprimir_valor(uint32_t numero, int socket){
     enviar_numero(socket,codigo,numero);
 }
 
-void enviar_page_fault_cpu(int cliente_fd, int marco) {
+void enviar_page_fault_cpu(int socket, uint32_t marco) {
     op_code codigo = PAGE_FAULT;
-    enviar_numero(cliente_fd,codigo, marco);
+    enviar_numero(socket,codigo, marco);
     //enviar_entero8bytes(cliente_fd, marco, cod_op);
 }
 

@@ -220,6 +220,7 @@ t_list* recibir_lista_segmentos(int socket);
 
 void agregar_lista_instrucciones( t_paquete *paquete, t_list *instrucciones);
 
+void enviar_page_fault_cpu(int socket, uint32_t marco);
 void enviar_numero(int socket, op_code codigo_op, uint32_t numero);
 void enviar_imprimir_valor(uint32_t numero, int socket);
 uint32_t recibir_valor(int socket);

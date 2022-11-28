@@ -49,6 +49,7 @@ uint32_t puntero_swap = 0;
 
 pthread_t thread_escucha_kernel;
 pthread_t thread_escucha_cpu;
+pthread_t buscador_marcos;
 
 t_list* registros_tabla_paginas;
 t_list* tabla_paginas;
