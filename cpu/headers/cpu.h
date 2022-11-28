@@ -39,7 +39,6 @@ uint32_t retardo_operacion_cpu;
 t_pcb* pcb;
 op_code estado_proceso;
 
-pthread_t thread_escucha_memoria;
 pthread_t thread_escucha_dispatch;
 pthread_t thread_escucha_interrupt;
 
@@ -52,7 +51,6 @@ sem_t continuar_ciclo_instruccion;
 //Conexiones a otros modulos
 void* conexion_dispatch(void* socket);
 void* conexion_interrupt(void* socket);
-void* conexion_memoria(void* socket);
 
 //Funciones del ciclo de instruccion
 void comenzar_ciclo_instruccion();
@@ -77,6 +75,5 @@ void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco);
 static bool comparator (void*, void*);
 uint32_t leer_en_memoria(dir_fisica * direccion_fisica);
 int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
-
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H

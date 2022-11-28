@@ -32,8 +32,6 @@ int main(int argc, char* argv[]){
 
     socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
     handshake_memoria(socket_memoria);
-    pthread_create(&thread_escucha_memoria, NULL, conexion_memoria, (void*) (intptr_t )socket_memoria);
-    pthread_detach(thread_escucha_memoria);
 
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
 
@@ -60,15 +58,6 @@ void validar_argumentos_main(int argumentos){
 		printf(RESET"");
 		exit(argumentos);
 	}
-}
-
-void* conexion_memoria(void* socket){
-    int socket_memoria = (intptr_t) socket;
-
-    while(socket_memoria != -1){
-        op_code codigo_operacion = recibir_operacion(socket_memoria);
-	}
-	return EXIT_SUCCESS;
 }
 
 void* conexion_dispatch(void* socket){
@@ -264,8 +253,8 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
 
     if (desplazamiento_segmento > segmento->tamanio_segmento) {
+        log_info(logger, string_from_format(RED"PID:<%d> - SEGMENTATION FAULT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         estado_proceso = SEGMENTATION_FAULT;
-        log_info(logger,"Estado proceso -> SEG. FAULT");
         //enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
         return NULL;
     }
@@ -280,7 +269,7 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
            return NULL;
        }
      } else {
-        log_info(logger, string_from_format(RED"PID:<%d> - TLB HIT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        log_info(logger, string_from_format(GRN"PID:<%d> - TLB HIT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
      }
 
      dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
@@ -403,32 +392,25 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
     eliminar_paquete(paquete);
 
     int marco = -1;
-    int obtuve_marco = 0;
-    int hubo_page_fault = 0;
 
-    while (socket_memoria != -1 && ( obtuve_marco == 0 || hubo_page_fault == 0)) {
+    if(socket_memoria != -1){
         op_code cod_op = recibir_operacion(socket_memoria);
         switch(cod_op) {
             case OBTENER_MARCO:
                 ;
                 recv(socket_memoria, &marco, sizeof(int), 0 );
-                log_info(logger, "obtuve marco de memoria: %d", marco );
-                obtuve_marco = 1;
+                log_info(logger,GRN"MARCO DE MEMORIA #: %d", marco );
                 break;
             case PAGE_FAULT:
-                log_info(logger,"HUBO PAGE_FAULT");
+                log_info(logger,RED"PAGE_FAULT");
                 pcb->program_counter--;
                 estado_proceso=PAGE_FAULT;
-                log_info(logger,"Estado proceso -> PAGE FAULT");
-                //enviar_PCB(socket_kernel_dispatch, pcb, PAGE_FAULT);
-                hubo_page_fault = 1;
-                marco = -1;
                 break;
             default:
+                log_warning(logger,"CPU -> Memoria envio algo mal");
                 break;
-
     }
-        return marco;
+    return marco;
     }
 }
 
