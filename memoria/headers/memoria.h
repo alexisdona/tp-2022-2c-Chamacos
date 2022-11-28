@@ -53,6 +53,8 @@ pthread_t thread_escucha_cpu;
 t_list* registros_tabla_paginas;
 t_list* tabla_paginas;
 
+pthread_mutex_t mutex_tabla_paginas;
+
 //Obtiene el ip y puerto del kernel para iniciar el servidor, devuele el socket
 int levantar_servidor();
 void iniciar_estructuras_administrativas_kernel();

@@ -7,7 +7,6 @@
 #define LOG_NAME "kernel_log"
 
 uint32_t cantidad_dispositivos;
-uint32_t input_consola;
 uint32_t hay_proceso_ejecutando;
 uint32_t INTERRUPCIONES_HABILITADAS;
 uint32_t ultimo_pid;
@@ -40,14 +39,12 @@ sem_t cpu_libre;
 sem_t finish_process;
 sem_t continuar_conteo_quantum;
 sem_t enviar_pcb_a_cpu;
-sem_t redirigir_proceso_bloqueado;
 sem_t bloquear_por_pantalla;
-sem_t desbloquear_pantalla;
 sem_t bloquear_por_teclado;
-sem_t desbloquear_teclado;
 sem_t bloquear_por_pf;
 sem_t estructuras_administrativas_pcb_listas;
-sem_t semaforos_dispositivos[];
+
+t_list* semaforos_dispositivos;
 
 //Mutex para proteger las colas
 pthread_mutex_t mutex_new;
@@ -59,15 +56,14 @@ pthread_mutex_t mutex_blocked_keyboard;
 pthread_mutex_t mutex_blocked_page_fault;
 pthread_mutex_t mutex_exit;
 pthread_mutex_t mutex_pid;
-pthread_mutex_t mutexes_blocked_io[];
-
-t_queue* new_queue;
+pthread_mutex_t mutex_blocked_io;
 t_queue* exit_queue;
-t_list* ready1_queue;
-t_list* ready2_queue;
-t_queue* lista_indices_cola_bloqueados_io[];
-t_queue* blocked_screen_queue;
-t_queue* blocked_keyboard_queue;
+t_queue* new_queue;
+t_list* ready1_list;
+t_list* ready2_list;
+t_list* blocked_io_list;
+t_list* blocked_screen_list;
+t_list* blocked_keyboard_list;
 t_queue* blocked_page_fault_queue;
 t_queue* running_queue;
 
@@ -111,7 +107,7 @@ void agregar_pcb_a_cola(t_pcb*,pthread_mutex_t, t_queue*);
 t_pcb* quitar_pcb_de_cola(pthread_mutex_t, t_queue* cola);
 
 void agregar_pcb_a_lista(t_pcb*,pthread_mutex_t, t_list*);
-t_pcb* quitar_pcb_de_lista(pthread_mutex_t, t_list* cola);
+t_pcb* quitar_primer_pcb_de_lista(pthread_mutex_t, t_list* cola);
 int algoritmo_planificacion_tiene_desalojo();
 
 //Funciones del planificador de largo plazo =================
@@ -132,7 +128,11 @@ void* manejador_estado_blocked_keyboard(void* x);
 void* clock_interrupt(void* socket);
 
 void* bloquear_pcb(void* indice);
-void bloquear_proceso_segun_dispositivo(t_pcb* pcb);
+t_pcb* buscar_pcb_a_bloquear(dispositivo io);
+t_pcb* obtener_pcb_de_lista_segun_socket(int socket,t_list* lista_pcb,pthread_mutex_t mutex);
+int obtener_indice_pcb_segun_socket(int socket,t_list* lista_pcb,pthread_mutex_t mutex);
+void desbloquear_pcb_screen(int socket);
+void desbloquear_pcb_keyboard(int socket,int input);
 
 dispositivo obtener_dispositivo(t_pcb* pcb);
 uint32_t obtener_tiempo_bloqueo(t_pcb* pcb);

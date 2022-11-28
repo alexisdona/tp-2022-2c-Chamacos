@@ -74,6 +74,7 @@ void crear_bitmap_frames_libres() {
 }
 
 void iniciar_estructuras_administrativas_kernel() {
+    pthread_mutex_init(&mutex_tabla_paginas,NULL);
     crear_bitmap_frames_libres();
     registros_tabla_paginas = list_create();
     tabla_paginas = list_create();
@@ -116,7 +117,9 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, ui
         printf("\n[indice:%d][registro:%d]registro_tabla_paginas->posicion_swap: %d\n", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->posicion_swap);
    */
     }
+    pthread_mutex_lock(&mutex_tabla_paginas);
     list_add(tabla_paginas, list_duplicate(registros_tabla_paginas));
+    pthread_mutex_unlock(&mutex_tabla_paginas);
     list_clean(registros_tabla_paginas);
     return list_size(tabla_paginas);
 }
@@ -146,7 +149,9 @@ void crear_archivo_swap() {
     else {
         perror("Error abriendo el archivo swap: ");
     }
+
     fclose(archivo_swap);
+    free(str);
 }
 
 void mostrar_contenido_archivo_swap() {
@@ -211,7 +216,6 @@ void procesar_conexion(void* void_args) {
             case OBTENER_MARCO:
                 printf(GRN"\n");
                 void* buffer_marco = recibir_buffer(cliente_fd);
-                printf("Recibi buffer!!\n");
                 uint32_t cantidad_marcos_ocupados_proceso=0;
                 usleep(retardo_memoria*1000);
                 uint32_t id_proceso_marco;
@@ -258,13 +262,15 @@ void enviar_marco(int cliente_fd, int marco) {
 void buscar_frame_libre_proceso(uint32_t id_proceso_marco, t_registro_tabla_paginas *registro_tabla_paginas) {
     int frame_libre = obtener_numero_frame_libre();
     uint32_t cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados_proceso(id_proceso_marco);
-    if (marcos_por_proceso > cantidad_marcos_ocupados_proceso) {
+    if (marcos_por_proceso > cantidad_marcos_ocupados_proceso || frame_libre >= 0 ) {
         void* pagina_swap = obtener_bloque_proceso_desde_swap(registro_tabla_paginas->posicion_swap);
         memcpy(espacio_usuario_memoria + (frame_libre * tamanio_pagina), pagina_swap, tamanio_pagina);
         registro_tabla_paginas->frame = (uint32_t) frame_libre;
         registro_tabla_paginas->presencia = 1;
         registro_tabla_paginas->uso = 1;
+
     }
+    enviar_codigo_op(socket_kernel, PAGE_FAULT_ATENDIDO);
 }
 
 void enviar_page_fault_cpu(int cliente_fd, op_code cod_op, int marco) {
@@ -286,8 +292,6 @@ void *conexion_kernel(void* socket){
                     t_segmento * segmento = malloc(sizeof(t_segmento));
                     segmento = list_get(pcb->tabla_segmentos, i);
                     segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid)-1);
-               //     log_info(logger, "segmento[%d]->tamaño: %d",i, segmento->tamanio_segmento);
-               //     log_info(logger, "segmento[%d]->indice_tabla: %d", i, segmento->indice_tabla_paginas );
                 }
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
                 break;

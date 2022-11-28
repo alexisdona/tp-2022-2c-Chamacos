@@ -97,7 +97,7 @@ void* conexion_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
     while(socket_interrupt != -1){
         op_code codigo_operacion = recibir_operacion(socket_interrupt);
-		
+
 		if(codigo_operacion == INTERRUPCION) {
 			log_info(logger,BLU"Conexion Interrupt: Interrupcion recibida"WHT);
 			pthread_mutex_lock(&mutex_flag_interrupcion);
@@ -198,7 +198,7 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
  */
 
 op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
-	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT,pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT, pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
     dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
 
     if(direccion_fisica != NULL) {
@@ -206,6 +206,7 @@ op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
         log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
         return CONTINUA_PROCESO;
     }
+
 	return PAGE_FAULT;
 }
 
@@ -270,18 +271,14 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
 
     marco = tlb_obtener_marco(numero_pagina);
     if (marco == -1 ) {
-       //TLB_MISS
-       log_info(logger, string_from_format(YEL"TLB MISS proceso %zu numero de página %d"RESET,pcb->pid, numero_pagina));
+       log_info(logger, string_from_format(RED"PID:<%d> - TLB MISS - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
        uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
        marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
        if (marco == -1) {
-           printf("\nCPU: marco=%d\n", marco);
            return NULL;
        }
-       //  tlb_actualizar(numero_pagina, marco);
      } else {
-       //TLB HIT
-       log_info(logger, string_from_format(GRN"TLB HIT para tbl en proceso %zu, numero de página %d y marco %d"RESET,pcb->pid, numero_pagina, marco));
+        log_info(logger, string_from_format(RED"PID:<%d> - TLB HIT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
      }
 
      dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
@@ -412,9 +409,8 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
         switch(cod_op) {
             case OBTENER_MARCO:
                 ;
-                void* buffer = recibir_buffer(socket_memoria);
-                memcpy(&marco, buffer, sizeof(int));
-                printf("\nmarco de memoria: %d\n", marco);
+                recv(socket_memoria, &marco, sizeof(int), 0 );
+                log_info(logger, "obtuve marco de memoria: %d", marco );
                 obtuve_marco = 1;
                 break;
             case PAGE_FAULT:
@@ -422,6 +418,7 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
                 pcb->program_counter--;
                 enviar_PCB(socket_kernel_dispatch, pcb, PAGE_FAULT);
                 hubo_page_fault = 1;
+                marco = -1;
                 break;
             default:
                 break;
