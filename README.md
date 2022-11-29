@@ -8,6 +8,7 @@ LINK ENUNCIADO:
 
 LINK PRUEBAS:
 [https://docs.google.com/document/d/1qxF4h9dkL5L6X6P8qts997wTC1qLxIg6ElZzlU1Xgi4/edit]
+
 ---
 
 ## CHECKPOINT #5 ENTREGAS FINALES: MEDRANO
