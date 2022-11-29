@@ -71,6 +71,7 @@ memoria/Default/
 *.project
 *.project
 *.log
+.vscode
 
 swap.bin
 
