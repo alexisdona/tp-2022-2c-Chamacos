@@ -207,7 +207,9 @@ op_code operacion_MOV_OUT(uint32_t direccion_logica, registro_cpu registro){
     dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
 
     if(direccion_fisica != NULL) {
-        escribir_en_memoria(direccion_fisica, registro);
+        registro_cpu* registro_pcb = obtener_registro(pcb,registro);
+        uint32_t valor = (*registro_pcb);
+        escribir_en_memoria(direccion_fisica, valor);
        // log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
         return CONTINUA_PROCESO;
     }

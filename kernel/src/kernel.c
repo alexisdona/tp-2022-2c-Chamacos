@@ -496,9 +496,11 @@ void* manejador_estado_ready(void* x){
 }
 
 void* manejador_estado_blocked_pf(void* x){
-    sem_wait(&desbloquear_por_pf);
-    t_pcb* pcb_page_fault_atendido = quitar_pcb_de_cola(mutex_blocked_page_fault, blocked_page_fault_queue);
-    agregar_a_ready(pcb_page_fault_atendido, PCB, BLOQUEADO_PAGE_FAULT);
+    while(1) {
+        sem_wait(&desbloquear_por_pf);
+        t_pcb *pcb_page_fault_atendido = quitar_pcb_de_cola(mutex_blocked_page_fault, blocked_page_fault_queue);
+        agregar_a_ready(pcb_page_fault_atendido, PCB, BLOQUEADO_PAGE_FAULT);
+    }
 }
 
 void* bloquear_pcb(void* indice){

@@ -207,25 +207,30 @@ void procesar_conexion(void* args) {
                 break;
             case ESCRIBIR_MEMORIA:
                 ;
+                uint32_t desplazamiento = 0; // es el deplazamiento para moverme en el buffer que recibo
                 uint32_t id_proceso_escribir_memoria;
                 uint32_t numero_pagina_escribir_memoria;
                 uint32_t marco_escribir_memoria;
-                uint32_t desplazamiento;
+
+                uint32_t desplazamiento_escribir_memoria;
                 uint32_t indice_tabla_paginas_escribir_memoria;
                 uint32_t valor_escribir_memoria;
                 void* buffer_escribir_memoria = recibir_buffer(socket_cpu);
-                int desplazamiento_escribir_memoria = 0;
-                memcpy(&id_proceso_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+
+                memcpy(&id_proceso_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
                 desplazamiento += sizeof (uint32_t);
-                memcpy(&numero_pagina_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                memcpy(&numero_pagina_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
                 desplazamiento += sizeof (uint32_t);
-                memcpy(&marco_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                memcpy(&marco_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
                 desplazamiento += sizeof (uint32_t);
-                memcpy(&indice_tabla_paginas_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                memcpy(&desplazamiento_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
                 desplazamiento += sizeof (uint32_t);
-                memcpy(&valor_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                memcpy(&indice_tabla_paginas_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
+                desplazamiento += sizeof (uint32_t);
+                memcpy(&valor_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
                 desplazamiento += sizeof (uint32_t);
                 memcpy((espacio_usuario_memoria +(marco_escribir_memoria*tamanio_pagina+desplazamiento_escribir_memoria)), &valor_escribir_memoria, sizeof(uint32_t));
+
                 enviar_mensaje(string_from_format("Escribi el valor: %d en el marco: %d desplazamiento :%d", valor_escribir_memoria, marco_escribir_memoria, desplazamiento_escribir_memoria), socket_cpu);
                 t_registro_tabla_paginas* registro_tabla_paginas_escribir_memoria = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas_escribir_memoria), numero_pagina_escribir_memoria));
                 registro_tabla_paginas_escribir_memoria->modificado = 1;
@@ -309,6 +314,7 @@ void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas
         registro_tabla_paginas->uso = 1;
     }
     enviar_codigo_op(socket_kernel, PAGE_FAULT_ATENDIDO);
+    log_info(logger, string_from_format("Envié PAGE_FAULT_ATENDIDO a kernel para frame: %d", frame_libre));
 }
 
 
