@@ -8,6 +8,24 @@ LINK ENUNCIADO:
 
 LINK PRUEBAS:
 [https://docs.google.com/document/d/1qxF4h9dkL5L6X6P8qts997wTC1qLxIg6ElZzlU1Xgi4/edit]
+---
+
+## CHECKPOINT #5 ENTREGAS FINALES: MEDRANO
+
+_FECHAS: 26/11/2022 - 03/12/2022 - 17/12/2022_
+
+###Objetivos 📌
+```
+* Finalizar  el desarrollo de todos los procesos.
+* Probar de manera intensiva el TP en un entorno distribuido.
+* Todos los componentes del TP ejecutan los requerimientos de forma integral.
+```
+
+###Documentacion 📖
+```
+* Guía de Despliegue de TP - https://docs.utnso.com.ar/guias/herramientas/deploy
+* Guía de uso de Bash - https://docs.utnso.com.ar/guias/consola/bash
+```
 
 ---
 
