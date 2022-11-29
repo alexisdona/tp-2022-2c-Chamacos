@@ -14,29 +14,22 @@ int main(int argc, char* argv[]) {
 
     lista_dispositivos = config_get_array_value(consola_config,"DISPOSITIVOS_IO");
 
-    for(int i=0; i<string_array_size(lista_dispositivos); i++){
-        printf("Disp: %s\n",lista_dispositivos[i]);
-    }
-
     FILE* archivo_pseudocodigo = fopen(archivo,"r");
 	t_list* instrucciones = parsear_instrucciones(logger, archivo_pseudocodigo);
-
-    char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
-    int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
-
-    int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
 
     char** segmentos_config = config_get_array_value(consola_config,"SEGMENTOS");
     t_list* tabla_segmentos = convertir_segmentos(segmentos_config);
 
-	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_DE_RESPUESTA");
+	int tiempo_respuesta = config_get_int_value(consola_config,"TIEMPO_PANTALLA");
     log_info(logger,string_from_format("Retardo de impresion: %ds",tiempo_respuesta/1000));
+
+
+    char* IP_KERNEL = config_get_string_value(communication_config,"IP_KERNEL");
+    int PUERTO_KERNEL = config_get_int_value(communication_config,"PUERTO_KERNEL");
+    int socket_kernel = crear_conexion(IP_KERNEL, PUERTO_KERNEL);
 
     enviar_lista_instrucciones_segmentos(socket_kernel, instrucciones, tabla_segmentos);
     log_info(logger,"Envie lista de instrucciones y segmentos");
-    list_destroy(instrucciones);
-    list_destroy(tabla_segmentos);
-
 
     while(socket_kernel!=-1){
 
@@ -64,15 +57,17 @@ int main(int argc, char* argv[]) {
 				break;
             case FINALIZAR_PROCESO:
                 terminar_programa(socket_kernel,logger,communication_config);
-                return EXIT_SUCCESS;
+                exit(EXIT_SUCCESS);
 			default:
                 log_trace(logger, "Operación desconocida en consola");
                 terminar_programa(socket_kernel, logger, communication_config);
+                exit(EXIT_FAILURE);
                 break;
         }
     }
-    return EXIT_SUCCESS;
 
+    list_destroy(instrucciones);
+    list_destroy(tabla_segmentos);
 }
 
 
@@ -197,6 +192,8 @@ void terminar_programa(uint32_t conexion, t_log* logger, t_config* config) {
     log_destroy(logger);
     if(config!=NULL) {
         config_destroy(config);
+        config_destroy(consola_config);
+        
     }
     close(conexion);
 }

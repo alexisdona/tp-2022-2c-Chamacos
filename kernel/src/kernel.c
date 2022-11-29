@@ -511,7 +511,6 @@ void* bloquear_pcb(void* indice){
 
     while(1){
         sem_wait(semaforo);
-        printf("Hilo: %s\n\n",traducir_dispositivo(io));
         pthread_mutex_lock(&mutex_blocked_io);
         pcb = buscar_pcb_a_bloquear(io);
         pthread_mutex_unlock(&mutex_blocked_io);
@@ -529,10 +528,8 @@ void* bloquear_pcb(void* indice){
 
 t_pcb* buscar_pcb_a_bloquear(dispositivo io){
     t_pcb* pcb;
-    printf("a");
     for(uint32_t i=0; i<list_size(blocked_io_list); i++){
         pcb = list_get(blocked_io_list,i);
-        printf("PID: %d - %d",pcb->pid,i);
         dispositivo disp = obtener_dispositivo(pcb);
         if(disp == io) {
             pcb = list_remove(blocked_io_list,i);
@@ -547,7 +544,6 @@ void* manejador_estado_blocked_screen(void* x){
 
     while(1){
         sem_wait(&bloquear_por_pantalla);
-        printf("Bloqueando proceso por pantalla\n");
         pthread_mutex_lock(&mutex_blocked_screen);
         pcb = list_get(blocked_screen_list,list_size(blocked_screen_list)-1);
         pthread_mutex_unlock(&mutex_blocked_screen);
@@ -564,7 +560,6 @@ void* manejador_estado_blocked_screen(void* x){
 
 void desbloquear_pcb_screen(int socket){
     t_pcb* pcb = obtener_pcb_de_lista_segun_socket(socket,blocked_screen_list,mutex_blocked_screen);
-    printf("Debloquear PID: %d\n",pcb->pid);
     agregar_a_ready(pcb,BLOQUEAR_PROCESO_PANTALLA,BLOQUEADO_PANTALLA);
 }
 
@@ -595,7 +590,6 @@ void desbloquear_pcb_keyboard(int socket, int input_consola){
 t_pcb* obtener_pcb_de_lista_segun_socket(int socket,t_list* lista_pcb,pthread_mutex_t mutex){
     t_pcb* pcb;
     uint32_t indice_pcb = obtener_indice_pcb_segun_socket(socket,lista_pcb,mutex);
-    printf("INDICE PCB: %d\n",indice_pcb);
     pthread_mutex_lock(&mutex);
     pcb = list_remove(lista_pcb,indice_pcb);
     pthread_mutex_unlock(&mutex);
@@ -609,14 +603,11 @@ int obtener_indice_pcb_segun_socket(int socket,t_list* lista_pcb,pthread_mutex_t
 
     pthread_mutex_lock(&mutex);
     uint32_t cantidad_elementos_lista = list_size(lista_pcb);
-    printf("ELEMENTOS: %d\n",cantidad_elementos_lista);
-
     for(uint32_t i=0; i < cantidad_elementos_lista; i++){
         pcb = list_get(lista_pcb,i);
-        printf("PID: %d >>>> PCBSCKT %d == %d SOCKET\n",pcb->pid,pcb->socket_consola,socket);
         if(pcb->socket_consola == socket){
             indice=i;
-            printf("Encontré PCB: PID: %d - Indice: %d\n",pcb->pid,indice);
+            break;
         }
     }
     pthread_mutex_unlock(&mutex);
