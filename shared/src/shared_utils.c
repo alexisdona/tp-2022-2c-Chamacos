@@ -28,8 +28,8 @@ registro_cpu* obtener_registro(t_pcb* pcb, registro_cpu registro){
     switch (registro){
         case AX: return &(pcb->registros_pcb->registro_ax);
         case BX: return &(pcb->registros_pcb->registro_bx);
-        case CX: return &(pcb->registros_pcb->registro_ax);
-        case DX: return &(pcb->registros_pcb->registro_ax);
+        case CX: return &(pcb->registros_pcb->registro_cx);
+        case DX: return &(pcb->registros_pcb->registro_dx);
         default: 
             printf(RED"Error al obtener el puntero del registro\n"WHT);
             exit(EXIT_FAILURE);

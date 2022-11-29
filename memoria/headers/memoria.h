@@ -48,9 +48,10 @@ int socket_cpu;
 uint32_t puntero_swap = 0;
 
 t_list* lista_pid_frame;
-t_list* lista_pid_registro_tabla_paginas;
+t_queue* cola_pid_registro_tabla_paginas;
 
 pthread_mutex_t mutex_listas_frames_pendientes;
+pthread_mutex_t mutex_puntero_swap;
 
 pthread_t thread_escucha_kernel;
 pthread_t thread_escucha_cpu;
@@ -88,6 +89,6 @@ void enviar_marco(int cliente_fd, int marco);
 
 void* buscar_marcos_para_procesos(void*);
 void actualizar_lista_frames_pendientes(t_registro_tabla_paginas* registro);
-t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(t_registro_tabla_paginas* registro);
+t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes();
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

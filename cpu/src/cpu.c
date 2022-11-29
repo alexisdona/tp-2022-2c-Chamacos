@@ -152,7 +152,7 @@ op_code fase_execute(t_instruccion* instruccion, uint32_t operador){
 			proceso_respuesta = operacion_ADD(instruccion->parametros[0],instruccion->parametros[1]);
 			break;
 		case MOV_IN:
-			proceso_respuesta = operacion_MOV_IN(&(instruccion->parametros[0]),instruccion->parametros[1]);
+			proceso_respuesta = operacion_MOV_IN(instruccion->parametros[0],instruccion->parametros[1]);
 			break;
 		case MOV_OUT:
 			proceso_respuesta = operacion_MOV_OUT(instruccion->parametros[0],instruccion->parametros[1]);
@@ -186,23 +186,33 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
  * a la Dirección Lógica y lo almacena en el Registro.
  */
 
-op_code operacion_MOV_IN(registro_cpu* registro, uint32_t direccion_logica){
-	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT, pcb->pid,traducir_registro_cpu(*registro),direccion_logica));
+op_code operacion_MOV_IN(registro_cpu registro, uint32_t direccion_logica){
+	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT, pcb->pid,traducir_registro_cpu(registro),direccion_logica));
     dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
 
     if(direccion_fisica != NULL) {
         uint32_t valor = leer_en_memoria(direccion_fisica);
+        registro_cpu* registro_pcb = obtener_registro(pcb, registro);
+        (*registro_pcb) = valor;
         log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
+
         return CONTINUA_PROCESO;
     }
 
 	return estado_proceso;
 }
 
-op_code operacion_MOV_OUT(uint32_t direccion_logica,registro_cpu registro){
+op_code operacion_MOV_OUT(uint32_t direccion_logica, registro_cpu registro){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_OUT> - <%d> - <%s>"WHT,pcb->pid,direccion_logica,traducir_registro_cpu(registro)));
-	direccion_logica = registro;
-	return CONTINUA_PROCESO;
+    dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
+
+    if(direccion_fisica != NULL) {
+        escribir_en_memoria(direccion_fisica, registro);
+       // log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
+        return CONTINUA_PROCESO;
+    }
+
+    return estado_proceso;
 }
 
 op_code operacion_IO(dispositivo dispositivo,uint32_t unidades_trabajo){
@@ -255,7 +265,6 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
     if (desplazamiento_segmento > segmento->tamanio_segmento) {
         log_info(logger, string_from_format(RED"PID:<%d> - SEGMENTATION FAULT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         estado_proceso = SEGMENTATION_FAULT;
-        //enviar_PCB(socket_kernel_dispatch, pcb, SEGMENTATION_FAULT);
         return NULL;
     }
 
@@ -273,6 +282,7 @@ dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
      }
 
      dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
+     direccion_fisica->indice_tabla_paginas = segmento->indice_tabla_paginas;
      direccion_fisica->numero_pagina = numero_pagina;
      direccion_fisica->marco = marco;
      direccion_fisica->desplazamiento = desplazamiento_pagina;
@@ -411,6 +421,29 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
                 break;
     }
     return marco;
+    }
+}
+
+void escribir_en_memoria(dir_fisica * direccion_fisica, uint32_t valor) {
+    t_paquete* paquete = crear_paquete();
+    paquete->codigo_operacion = ESCRIBIR_MEMORIA;
+    agregar_entero(paquete, pcb->pid);
+    agregar_entero(paquete, direccion_fisica->numero_pagina); // lo necesito para actualizar el proceso en swap
+    agregar_entero(paquete, direccion_fisica->marco);
+    agregar_entero(paquete, direccion_fisica->desplazamiento);
+    agregar_entero(paquete, direccion_fisica->indice_tabla_paginas);
+    agregar_entero(paquete, valor);
+
+    enviar_paquete(paquete, socket_memoria);
+    eliminar_paquete(paquete);
+
+    int recibi_mensaje = 0;
+    while (socket_memoria != -1 && recibi_mensaje == 0) {
+        op_code cod_op = recibir_operacion(socket_memoria);
+        if(cod_op == MENSAJE){
+            recibir_mensaje(socket_memoria, logger);
+            recibi_mensaje = 1;
+        }
     }
 }
 

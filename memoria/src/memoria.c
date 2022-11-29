@@ -13,9 +13,10 @@ int main(int argc, char* argv[]){
 
     sem_init(&buscar_frame, 0, 0);
     pthread_mutex_init(&mutex_listas_frames_pendientes,NULL);
+    pthread_mutex_init(&mutex_puntero_swap,NULL);
 
     lista_pid_frame = list_create();
-    lista_pid_registro_tabla_paginas = list_create();
+    cola_pid_registro_tabla_paginas = queue_create();
 
     iniciar_estructuras_administrativas_kernel();
     crear_archivo_swap();
@@ -110,8 +111,8 @@ void crear_espacio_usuario() {
 
 uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid ) {
     int cantidad_registros_tabla_segmentos = MAX(tamanio_segmento/tamanio_pagina, 1);
-    t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
     for(int i=0; i < cantidad_registros_tabla_segmentos ; i++) {
+        t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
         registro_tabla_paginas->pid = pid;
         registro_tabla_paginas->frame = 0;
         registro_tabla_paginas->modificado = 0;
@@ -205,23 +206,45 @@ void procesar_conexion(void* args) {
                 recibir_mensaje(socket_cpu, logger);
                 break;
             case ESCRIBIR_MEMORIA:
+                ;
+                uint32_t id_proceso_escribir_memoria;
+                uint32_t numero_pagina_escribir_memoria;
+                uint32_t marco_escribir_memoria;
+                uint32_t desplazamiento;
+                uint32_t indice_tabla_paginas_escribir_memoria;
+                uint32_t valor_escribir_memoria;
+                void* buffer_escribir_memoria = recibir_buffer(socket_cpu);
+                int desplazamiento_escribir_memoria = 0;
+                memcpy(&id_proceso_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                desplazamiento += sizeof (uint32_t);
+                memcpy(&numero_pagina_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                desplazamiento += sizeof (uint32_t);
+                memcpy(&marco_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                desplazamiento += sizeof (uint32_t);
+                memcpy(&indice_tabla_paginas_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                desplazamiento += sizeof (uint32_t);
+                memcpy(&valor_escribir_memoria, buffer_escribir_memoria+desplazamiento_escribir_memoria, sizeof (uint32_t));
+                desplazamiento += sizeof (uint32_t);
+                memcpy((espacio_usuario_memoria +(marco_escribir_memoria*tamanio_pagina+desplazamiento_escribir_memoria)), &valor_escribir_memoria, sizeof(uint32_t));
+                enviar_mensaje(string_from_format("Escribi el valor: %d en el marco: %d desplazamiento :%d", valor_escribir_memoria, marco_escribir_memoria, desplazamiento_escribir_memoria), socket_cpu);
+                t_registro_tabla_paginas* registro_tabla_paginas_escribir_memoria = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas_escribir_memoria), numero_pagina_escribir_memoria));
+                registro_tabla_paginas_escribir_memoria->modificado = 1;
+
                 break;
             case LEER_MEMORIA:
                 ;
                 uint32_t marco_leer_memoria;
                 uint32_t desplazamiento_leer_memoria;
-                void* buffer_marco_leer_memoria = recibir_buffer(socket_cpu);
-                memcpy(&marco_leer_memoria, buffer_marco_leer_memoria, sizeof (uint32_t));
-                memcpy(&desplazamiento_leer_memoria, buffer_marco_leer_memoria + sizeof (uint32_t), sizeof(uint32_t));
-                printf("Me pidieron leer de memoria en el marco: %d", marco_leer_memoria);
+                void* buffer_leer_memoria = recibir_buffer(socket_cpu);
+                memcpy(&marco_leer_memoria, buffer_leer_memoria, sizeof (uint32_t));
+                memcpy(&desplazamiento_leer_memoria, buffer_leer_memoria + sizeof (uint32_t), sizeof(uint32_t));
                 uint32_t* valor_leido = (uint32_t *) (espacio_usuario_memoria +(marco_leer_memoria*tamanio_pagina+desplazamiento_leer_memoria));
                 enviar_entero(socket_cpu, *valor_leido, LEER_MEMORIA);
                 //falta actualizar el bit de uso en 1 en la tabla de paginas. Hay que recibir el indice de la tabla para saber cual es.
                 break;
             case OBTENER_MARCO:
-                printf(GRN"\n");
+                ;
                 void* buffer_marco = recibir_buffer(socket_cpu);
-                uint32_t cantidad_marcos_ocupados_proceso=0;
                 usleep(retardo_memoria*1000);
                 uint32_t id_proceso_marco;
                 uint32_t nro_tabla_obtener_marco;
@@ -300,7 +323,7 @@ void *conexion_kernel(void* socket){
                 log_info(logger, "creando estructuras administrativas");
                 t_pcb* pcb = recibir_PCB(socket_kernel);
                 for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
-                    t_segmento * segmento = malloc(sizeof(t_segmento));
+                    t_segmento * segmento;
                     segmento = list_get(pcb->tabla_segmentos, i);
                     segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid)-1);
                 }
@@ -323,8 +346,10 @@ void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t
 }
 
 void actualizar_puntero_swap(){
-    //falta un mutex que encierre esta seccion critica
+    pthread_mutex_lock(&mutex_puntero_swap);
     puntero_swap+=tamanio_pagina;
+    pthread_mutex_unlock(&mutex_puntero_swap);
+
 }
 
 int obtener_numero_frame_libre() {
@@ -381,13 +406,14 @@ void* buscar_marcos_para_procesos(void* args){
 
 void actualizar_lista_frames_pendientes(t_registro_tabla_paginas* registro){
     pthread_mutex_lock(&mutex_listas_frames_pendientes);
-    list_add(lista_pid_registro_tabla_paginas,registro);
+    queue_push(cola_pid_registro_tabla_paginas, registro);
     pthread_mutex_unlock(&mutex_listas_frames_pendientes);
 }
 
-t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(t_registro_tabla_paginas* registro){
+t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(){
     pthread_mutex_lock(&mutex_listas_frames_pendientes);
-    registro = list_remove(lista_pid_registro_tabla_paginas,0);
+    t_registro_tabla_paginas * registro;
+    registro = (t_registro_tabla_paginas *) queue_pop(cola_pid_registro_tabla_paginas);
     pthread_mutex_unlock(&mutex_listas_frames_pendientes);
     return registro;
 }

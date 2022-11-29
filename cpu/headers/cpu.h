@@ -9,6 +9,7 @@
 
 typedef struct
 {
+    uint32_t indice_tabla_paginas;
     uint32_t numero_pagina;
     uint32_t marco;
     uint32_t desplazamiento;
@@ -60,7 +61,7 @@ operando fase_fetch_operand(operando direccion_operador_a_buscar);
 op_code fase_execute(t_instruccion* instruccion, uint32_t operador);
 op_code operacion_SET(registro_cpu registro,uint32_t valor);
 op_code operacion_ADD(registro_cpu,registro_cpu);
-op_code operacion_MOV_IN(registro_cpu*,uint32_t direccion);
+op_code operacion_MOV_IN(registro_cpu,uint32_t direccion);
 op_code operacion_MOV_OUT(uint32_t direccion,registro_cpu);
 op_code operacion_IO(dispositivo,uint32_t unidades_trabajo);
 op_code operacion_EXIT();
@@ -75,5 +76,6 @@ void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco);
 static bool comparator (void*, void*);
 uint32_t leer_en_memoria(dir_fisica * direccion_fisica);
 int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
+void escribir_en_memoria(dir_fisica * direccion_fisica, uint32_t valor);
 
 #endif //TP_2022_2C_CHAMACOS_CPU_H
