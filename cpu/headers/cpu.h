@@ -86,5 +86,5 @@ static bool comparator (void*, void*);
 uint32_t leer_en_memoria(punteros_cpu * punteros_cpu);
 int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
 void escribir_en_memoria(punteros_cpu * direccion_fisica, uint32_t valor);
-
+uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada);
 #endif //TP_2022_2C_CHAMACOS_CPU_H
