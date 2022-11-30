@@ -9,6 +9,7 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 typedef struct {
+    uint32_t numero_pagina;
     uint32_t pid;
     uint32_t frame;
     uint modificado;
@@ -80,7 +81,7 @@ void *conexion_cpu(void* socket);
 void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t cantidad_entradas_tabla);
 void actualizar_puntero_swap();
 int obtener_numero_frame_libre();
-uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid);
+uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas);
 void* obtener_bloque_proceso_desde_swap(uint32_t posicion_swap);
 uint32_t obtener_cantidad_marcos_ocupados_proceso(uint32_t id_proceso_marco);
 //void enviar_page_fault_cpu(int cliente_fd, op_code cod_op, int marco);

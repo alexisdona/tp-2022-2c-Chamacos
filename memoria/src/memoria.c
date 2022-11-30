@@ -109,10 +109,11 @@ void crear_espacio_usuario() {
       */
 }
 
-uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid ) {
+uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas ) {
     int cantidad_registros_tabla_segmentos = MAX(tamanio_segmento/tamanio_pagina, 1);
     for(int i=0; i < cantidad_registros_tabla_segmentos ; i++) {
         t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
+        registro_tabla_paginas->numero_pagina = contador_paginas;
         registro_tabla_paginas->pid = pid;
         registro_tabla_paginas->frame = 0;
         registro_tabla_paginas->modificado = 0;
@@ -121,13 +122,16 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, ui
         registro_tabla_paginas->posicion_swap = puntero_swap;
         actualizar_puntero_swap();
         list_add(registros_tabla_paginas, registro_tabla_paginas);
-    /*    printf("\n[indice:%d][registro:%d]registro_tabla_paginas->pid: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->pid);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->frame: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->frame);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->modificado: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->modificado);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->presencia: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->presencia);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->uso: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->uso);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->posicion_swap: %d\n", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->posicion_swap);
-   */
+        contador_paginas++;
+        log_info(logger, string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->pid: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->pid));
+        log_info(logger, string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->numero_pagina: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->numero_pagina));
+
+        /* log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->frame: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->frame));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->modificado: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->modificado));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->presencia: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->presencia));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->uso: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->uso));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->posicion_swap: %d\n", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->posicion_swap));
+ */
     }
     pthread_mutex_lock(&mutex_tabla_paginas);
     list_add(tabla_paginas, list_duplicate(registros_tabla_paginas));
@@ -328,10 +332,12 @@ void *conexion_kernel(void* socket){
                 ;
                 log_info(logger, "creando estructuras administrativas");
                 t_pcb* pcb = recibir_PCB(socket_kernel);
+                uint32_t contador_paginas =0;
                 for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
                     t_segmento * segmento;
                     segmento = list_get(pcb->tabla_segmentos, i);
-                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid)-1);
+                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid, contador_paginas)-1);
+                    contador_paginas = contador_paginas + (segmento->tamanio_segmento / tamanio_pagina);
                 }
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
                 break;

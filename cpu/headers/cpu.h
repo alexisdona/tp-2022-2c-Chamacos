@@ -29,7 +29,7 @@ typedef struct
     uint32_t segmento;
     uint32_t pagina;
     uint32_t marco;
-    uint32_t veces_referenciada;
+    uint32_t instante_referencia;
 } tlb_entrada;
 
 int socket_kernel_dispatch, socket_kernel_interrupt, socket_memoria;
