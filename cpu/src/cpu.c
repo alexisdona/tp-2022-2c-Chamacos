@@ -1,6 +1,8 @@
 
 #include "../headers/cpu.h"
 
+void imprimir_entradas_tlb();
+
 int main(int argc, char* argv[]){
 
     validar_argumentos_main(argc);
@@ -188,13 +190,15 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
 
 op_code operacion_MOV_IN(registro_cpu registro, uint32_t direccion_logica){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT, pcb->pid,traducir_registro_cpu(registro),direccion_logica));
-    dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
+    punteros_cpu* punteros_cpu = obtener_direccion_fisica(direccion_logica);
 
-    if(direccion_fisica != NULL) {
-        uint32_t valor = leer_en_memoria(direccion_fisica);
+    if(punteros_cpu != NULL) {
+        uint32_t valor = leer_en_memoria(punteros_cpu);
         registro_cpu* registro_pcb = obtener_registro(pcb, registro);
         (*registro_pcb) = valor;
-        log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
+        log_info(logger, "%s",
+                 string_from_format("PID: <%d> - Acción: <LEER> - Segmento: <%d> - Pagina: <%d> - Dirección Fisica: <marco:%d-despl:%d>”",
+                                    pcb->pid, punteros_cpu->numero_segmento, punteros_cpu->numero_pagina, punteros_cpu->direccion_fisica->marco, punteros_cpu->direccion_fisica->desplazamiento));
 
         return CONTINUA_PROCESO;
     }
@@ -204,13 +208,15 @@ op_code operacion_MOV_IN(registro_cpu registro, uint32_t direccion_logica){
 
 op_code operacion_MOV_OUT(uint32_t direccion_logica, registro_cpu registro){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_OUT> - <%d> - <%s>"WHT,pcb->pid,direccion_logica,traducir_registro_cpu(registro)));
-    dir_fisica* direccion_fisica = obtener_direccion_fisica(direccion_logica);
+    punteros_cpu * punteros_cpu = obtener_direccion_fisica(direccion_logica);
 
-    if(direccion_fisica != NULL) {
+    if(punteros_cpu != NULL) {
         registro_cpu* registro_pcb = obtener_registro(pcb,registro);
         uint32_t valor = (*registro_pcb);
-        escribir_en_memoria(direccion_fisica, valor);
-       // log_info(logger, string_from_format("El valor leido de la dirección lógica %d memoria es %d", direccion_logica, valor));
+        escribir_en_memoria(punteros_cpu, valor);
+        log_info(logger, "%s",
+                 string_from_format(BLU"PID: <%d> - Acción: <ESCRIBIR> - Segmento: <%d> - Pagina: <%d> - Dirección Fisica: <marco:%d-despl:%d>"RESET,
+                                    pcb->pid, punteros_cpu->numero_segmento, punteros_cpu->numero_pagina, punteros_cpu->direccion_fisica->marco, punteros_cpu->direccion_fisica->desplazamiento));
         return CONTINUA_PROCESO;
     }
 
@@ -254,42 +260,48 @@ void desalojo_proceso(){
 	hubo_interrupcion = CONTINUA_PROCESO;
 }
 
-dir_fisica* obtener_direccion_fisica(uint32_t direccion_logica) {
+punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
 
     uint32_t tamanio_maximo_segmento = entradas_por_tabla * tamanio_pagina;
     uint32_t numero_segmento = floor(direccion_logica / tamanio_maximo_segmento);
     uint32_t desplazamiento_segmento = direccion_logica % tamanio_maximo_segmento;
     uint32_t numero_pagina = floor(desplazamiento_segmento / tamanio_pagina);
     uint32_t desplazamiento_pagina = desplazamiento_segmento % tamanio_pagina;
+
     int marco;
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
 
     if (desplazamiento_segmento > segmento->tamanio_segmento) {
-        log_info(logger, string_from_format(RED"PID:<%d> - SEGMENTATION FAULT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        log_info(logger, string_from_format(RED"PID:<%d> - SEGMENTATION FAULT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         estado_proceso = SEGMENTATION_FAULT;
         return NULL;
     }
 
-
-    marco = tlb_obtener_marco(numero_pagina);
+    marco = tlb_obtener_marco(pcb->pid, numero_segmento, numero_pagina);
     if (marco == -1 ) {
-       log_info(logger, string_from_format(RED"PID:<%d> - TLB MISS - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
-       uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
-       marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
-       if (marco == -1) {
-           return NULL;
-       }
-     } else {
-        log_info(logger, string_from_format(GRN"PID:<%d> - TLB HIT - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        log_info(logger, "%s", string_from_format(RED"PID:<%d> - TLB MISS - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
+        marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
+        if (marco == -1) {
+            log_info(logger, "%s", string_from_format(RED"Page Fault PID: <%d> - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+            return NULL;
+        }
+        tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
+    } else {
+        log_info(logger, "%s", string_from_format(GRN"PID:<%d> - TLB HIT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
      }
 
-     dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
-     direccion_fisica->indice_tabla_paginas = segmento->indice_tabla_paginas;
-     direccion_fisica->numero_pagina = numero_pagina;
-     direccion_fisica->marco = marco;
-     direccion_fisica->desplazamiento = desplazamiento_pagina;
+    punteros_cpu *punteros_cpu = malloc(sizeof (punteros_cpu));
+    punteros_cpu->pid = pcb->pid;
+    punteros_cpu->numero_segmento = numero_segmento;
+    punteros_cpu->indice_tabla_paginas = segmento->indice_tabla_paginas;
+    punteros_cpu->numero_pagina = numero_pagina;
+    dir_fisica * direccion_fisica = malloc(sizeof(dir_fisica));
+    direccion_fisica->marco = marco;
+    direccion_fisica->desplazamiento = desplazamiento_pagina;
+    punteros_cpu->direccion_fisica = direccion_fisica;
 
-     return direccion_fisica;
+    return punteros_cpu;
 }
 
 void handshake_memoria(int conexion_memoria){
@@ -304,12 +316,12 @@ void handshake_memoria(int conexion_memoria){
 
 ////--------------------------------------------------------TLB------------------------------------------------------------------
 
-int tlb_obtener_marco(uint32_t numero_pagina) {
-    tlb_entrada * entrada_tlb;
+int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina) {
+    tlb_entrada * entrada_tlb = malloc(sizeof(tlb_entrada));
     if (list_size(tlb) > 0) {
         for (int i=0; i < list_size(tlb); i++) {
-            entrada_tlb = list_get(tlb,i);
-            if (entrada_tlb->pagina == numero_pagina) {
+            entrada_tlb = (tlb_entrada *) list_get(tlb,i);
+            if (entrada_tlb->pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
                 entrada_tlb->veces_referenciada+=1;
                 return entrada_tlb->marco;
             }
@@ -330,21 +342,31 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
     }
 }
 
-void tlb_actualizar(uint32_t numero_pagina, uint32_t marco){
-    tlb_entrada* tlb_entrada = malloc(sizeof(tlb_entrada));
-    tlb_entrada ->marco = marco;
-    tlb_entrada ->pagina = numero_pagina;
+void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco){
+    log_info(logger, "\nNUMERO_SEGMENTO: %d", numero_segmento);
+    tlb_entrada* tlb_entrada = malloc(sizeof(uint32_t)*5);
+    tlb_entrada->pid = pid;
+    tlb_entrada->segmento = numero_segmento;
+    tlb_entrada->pagina = numero_pagina;
+    tlb_entrada->marco = marco;
     tlb_entrada->veces_referenciada=1;
-    //si ahora es otra pagina la que referencia al marco porque se reemplazo por el otro
-    actualizar_entrada_marco_existente(numero_pagina, marco);
-    if(list_size(tlb) >= entradas_max_tlb){
-        log_info(logger, string_from_format(GRN"Ejecutando algoritmo de reemplazo %s para entrada en la tlb para proceso %zu, numero de pagina %d y marco %d"RESET,algoritmo_reemplazo_tlb, pcb->pid, numero_pagina, marco));
+    if (list_size(tlb) >= entradas_max_tlb){
         reemplazar_entrada_tlb(tlb_entrada);
-    }
-    else
-    {
-        log_info(logger, string_from_format(GRN"Agregando entrada en la tlb para proceso %zu, numero de pagina %d y marco %d"RESET, pcb->pid, numero_pagina, marco));
+    } else {
         list_add(tlb, tlb_entrada);
+    }
+    imprimir_entradas_tlb();
+}
+
+void imprimir_entradas_tlb() {
+    for (int i=0; i < tlb->elements_count; i++) {
+        tlb_entrada* entrada = list_get(tlb, i);
+       log_info(logger,string_from_format(YEL"<ENTRADA_TLB:%d>|PID:<%d>|SEGMENTO:<%d>|PAGINA:<%d>|MARCO:<%d>"RESET,
+                                          i,
+                                          entrada->pid,
+                                          entrada->segmento,
+                                          entrada->pagina,
+                                          entrada->marco));
     }
 }
 
@@ -369,13 +391,12 @@ void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
     }
 }
 
-uint32_t leer_en_memoria(dir_fisica * direccion_fisica) {
+uint32_t leer_en_memoria(punteros_cpu * punteros_cpu) {
     t_paquete* paquete = crear_paquete();
     paquete->codigo_operacion = LEER_MEMORIA;
-    agregar_entero(paquete, direccion_fisica->marco);
-    agregar_entero(paquete, direccion_fisica->desplazamiento);
-    agregar_entero(paquete, direccion_fisica->numero_pagina);
-
+    agregar_entero(paquete, punteros_cpu->direccion_fisica->marco);
+    agregar_entero(paquete, punteros_cpu->direccion_fisica->desplazamiento);
+    agregar_entero(paquete, punteros_cpu->numero_pagina);
     enviar_paquete(paquete, socket_memoria);
     eliminar_paquete(paquete);
 
@@ -411,10 +432,8 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
             case OBTENER_MARCO:
                 ;
                 marco = recibir_valor(socket_memoria);
-                log_info(logger,GRN"MARCO DE MEMORIA #: %d", marco );
                 break;
             case PAGE_FAULT:
-                log_info(logger,RED"PAGE_FAULT");
                 pcb->program_counter--;
                 estado_proceso=PAGE_FAULT;
                 break;
@@ -426,14 +445,14 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
     }
 }
 
-void escribir_en_memoria(dir_fisica * direccion_fisica, uint32_t valor) {
+void escribir_en_memoria(punteros_cpu * punteros_cpu, uint32_t valor) {
     t_paquete* paquete = crear_paquete();
     paquete->codigo_operacion = ESCRIBIR_MEMORIA;
     agregar_entero(paquete, pcb->pid);
-    agregar_entero(paquete, direccion_fisica->numero_pagina); // lo necesito para actualizar el proceso en swap
-    agregar_entero(paquete, direccion_fisica->marco);
-    agregar_entero(paquete, direccion_fisica->desplazamiento);
-    agregar_entero(paquete, direccion_fisica->indice_tabla_paginas);
+    agregar_entero(paquete, punteros_cpu->numero_pagina); // lo necesito para actualizar el proceso en swap
+    agregar_entero(paquete, punteros_cpu->direccion_fisica->marco);
+    agregar_entero(paquete, punteros_cpu->direccion_fisica->desplazamiento);
+    agregar_entero(paquete, punteros_cpu->indice_tabla_paginas);
     agregar_entero(paquete, valor);
 
     enviar_paquete(paquete, socket_memoria);
