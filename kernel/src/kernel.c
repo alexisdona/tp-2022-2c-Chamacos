@@ -178,6 +178,16 @@ void* conexion_dispatch(void* socket){
                 sem_post(&finish_process);
                 break;
 
+            case SEGMENTATION_FAULT:
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
+                agregar_pcb_a_cola(pcb,mutex_exit, exit_queue);
+                pthread_mutex_lock(&mutex_logger);
+                log_info(logger,string_from_format(RED" <%d> SEGMENTATION FAULT",pcb->pid));
+                pthread_mutex_unlock(&mutex_logger);
+                logear_cambio_estado(pcb,RUNNING,EXIT_S);
+                sem_post(&finish_process);
+                break;
+
             default:
                 pthread_mutex_lock(&mutex_logger);
                 log_warning(logger,"Conexion Dispatch -> Recibio una operacion incorrecta");
@@ -448,9 +458,9 @@ void* finalizador_procesos(void* x){
 
         log_info(logger,BLU"Conexion Consola: Finalizar consola"WHT);
         enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
-        sem_post(&grado_multiprogramacion);
+        enviar_PCB(socket_memoria,pcb,FINALIZAR_PROCESO);
         free(pcb);
-        //Avisar a memoria
+        sem_post(&grado_multiprogramacion);
     }
     return EXIT_SUCCESS;
 }
