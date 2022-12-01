@@ -430,9 +430,12 @@ void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
 uint32_t leer_en_memoria(punteros_cpu * punteros_cpu) {
     t_paquete* paquete = crear_paquete();
     paquete->codigo_operacion = LEER_MEMORIA;
+    agregar_entero(paquete, punteros_cpu->pid);
+    agregar_entero(paquete, punteros_cpu->indice_tabla_paginas);
+    agregar_entero(paquete, punteros_cpu->numero_pagina);
     agregar_entero(paquete, punteros_cpu->direccion_fisica->marco);
     agregar_entero(paquete, punteros_cpu->direccion_fisica->desplazamiento);
-    agregar_entero(paquete, punteros_cpu->numero_pagina);
+
     enviar_paquete(paquete, socket_memoria);
     eliminar_paquete(paquete);
 

@@ -4,6 +4,7 @@
 
 
 
+
 int main(int argc, char* argv[]){
 
     validar_argumentos_main(argc);
@@ -22,7 +23,8 @@ int main(int argc, char* argv[]){
     crear_archivo_swap();
     //mostrar_contenido_archivo_swap();
     crear_espacio_usuario();
-
+    frames_ocupados = dictionary_create();
+    paginas_frames = queue_create();
     socket_kernel =  crear_conexion(ip_kernel, puerto_kernel);
     enviar_handshake_inicial(socket_kernel, MEMORIA, logger );
 
@@ -213,7 +215,7 @@ void procesar_conexion(void* args) {
                 ;
                 uint32_t desplazamiento = 0; // es el deplazamiento para moverme en el buffer que recibo
                 uint32_t id_proceso_escribir_memoria;
-                uint32_t numero_pagina_escribir_memoria;
+                uint32_t numero_pagina_escribir_memoria; //este numero es relativo al segmento
                 uint32_t marco_escribir_memoria;
 
                 uint32_t desplazamiento_escribir_memoria;
@@ -236,20 +238,33 @@ void procesar_conexion(void* args) {
                 memcpy((espacio_usuario_memoria +(marco_escribir_memoria*tamanio_pagina+desplazamiento_escribir_memoria)), &valor_escribir_memoria, sizeof(uint32_t));
 
                 enviar_mensaje(string_from_format("Escribi el valor: %d en el marco: %d desplazamiento :%d", valor_escribir_memoria, marco_escribir_memoria, desplazamiento_escribir_memoria), socket_cpu);
-                t_registro_tabla_paginas* registro_tabla_paginas_escribir_memoria = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas_escribir_memoria), numero_pagina_escribir_memoria));
-                registro_tabla_paginas_escribir_memoria->modificado = 1;
+
+                t_registro_tabla_paginas * registro_escrito_memoria = obtener_registro_tabla_paginas(indice_tabla_paginas_escribir_memoria, numero_pagina_escribir_memoria);
+                actualizar_bit_modificado(registro_escrito_memoria);
 
                 break;
             case LEER_MEMORIA:
                 ;
+                uint32_t id_proceso_leer_memoria;
+                uint32_t indica_pagina_leer_memoria;
+                uint32_t numero_pagina_leer_memoria; //este numero es relativo al segmento
                 uint32_t marco_leer_memoria;
                 uint32_t desplazamiento_leer_memoria;
+                int despl=0;
                 void* buffer_leer_memoria = recibir_buffer(socket_cpu);
-                memcpy(&marco_leer_memoria, buffer_leer_memoria, sizeof (uint32_t));
-                memcpy(&desplazamiento_leer_memoria, buffer_leer_memoria + sizeof (uint32_t), sizeof(uint32_t));
+                memcpy(&id_proceso_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&indica_pagina_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&numero_pagina_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&marco_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&desplazamiento_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
                 uint32_t* valor_leido = (uint32_t *) (espacio_usuario_memoria +(marco_leer_memoria*tamanio_pagina+desplazamiento_leer_memoria));
                 enviar_entero(socket_cpu, *valor_leido, LEER_MEMORIA);
-                //falta actualizar el bit de uso en 1 en la tabla de paginas. Hay que recibir el indice de la tabla para saber cual es.
+                t_registro_tabla_paginas * registro_leido_memoria = obtener_registro_tabla_paginas(indice_tabla_paginas_escribir_memoria, numero_pagina_escribir_memoria);
+                actualizar_bit_uso(registro_leido_memoria);
                 break;
             case OBTENER_MARCO:
                 ;
@@ -258,32 +273,23 @@ void procesar_conexion(void* args) {
                 uint32_t id_proceso_marco;
                 uint32_t nro_tabla_obtener_marco;
                 uint32_t numero_pag_obtener_marco;
-                int despl = 0;
+                int desp = 0;
                 int marco = -1;
-                memcpy(&id_proceso_marco, buffer_marco+despl, sizeof(uint32_t));
-                despl+= sizeof(uint32_t);
+                memcpy(&id_proceso_marco, buffer_marco+desp, sizeof(uint32_t));
+                desp+= sizeof(uint32_t);
 
-                printf("PID: %d\t",id_proceso_marco);
+                memcpy(&nro_tabla_obtener_marco, buffer_marco+desp, sizeof(uint32_t));
+                desp+= sizeof(uint32_t);
 
-                memcpy(&nro_tabla_obtener_marco, buffer_marco+despl, sizeof(uint32_t));
-                despl+= sizeof(uint32_t);
-
-                printf("Tabla: %d\t",nro_tabla_obtener_marco);
-
-                memcpy(&numero_pag_obtener_marco, buffer_marco + despl, sizeof(uint32_t));
-                t_registro_tabla_paginas* registro_tabla_paginas = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, nro_tabla_obtener_marco), numero_pag_obtener_marco));
-
-                printf("Pag: %d\n",numero_pag_obtener_marco);
+                memcpy(&numero_pag_obtener_marco, buffer_marco + desp, sizeof(uint32_t));
+                t_registro_tabla_paginas* registro_tabla_paginas = obtener_registro_tabla_paginas(nro_tabla_obtener_marco, numero_pag_obtener_marco);
 
                 if(registro_tabla_paginas->presencia) {
                     log_info(logger,"Presencia");
                     marco = registro_tabla_paginas->frame;
                     enviar_marco(socket_cpu, marco);
                 } else {
-                    //cod_op = PAGE_FAULT;
                     log_info(logger,"MEMORIA --> Enviando page_fault");
-                    //enviar_page_fault_cpu(cliente_fd, cod_op, marco);
-                    //enviar_page_fault_cpu(socket_cpu,marco);
                     actualizar_lista_frames_pendientes(registro_tabla_paginas);
                     sem_post(&buscar_frame);
                     enviar_codigo_op(socket_cpu,PAGE_FAULT);
@@ -303,6 +309,19 @@ void procesar_conexion(void* args) {
     }
 }
 
+t_registro_tabla_paginas *obtener_registro_tabla_paginas(uint32_t indice_tabla_paginas,
+                                                         uint32_t numero_pagina) {
+    return (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas), numero_pagina)); }
+
+void actualizar_bit_modificado(t_registro_tabla_paginas* registro_tabla_paginas) {
+    registro_tabla_paginas->modificado = 1;
+    actualizar_bit_uso(registro_tabla_paginas);
+}
+
+void actualizar_bit_uso(t_registro_tabla_paginas* registro_tabla_paginas) {
+    registro_tabla_paginas->uso = 1;
+}
+
 void enviar_marco(int cliente_fd, int marco) {
     enviar_entero8bytes(cliente_fd, marco, OBTENER_MARCO);
 }
@@ -310,15 +329,28 @@ void enviar_marco(int cliente_fd, int marco) {
 void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas) {
     int frame_libre = obtener_numero_frame_libre();
     uint32_t cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados_proceso(registro_tabla_paginas->pid);
-    if (marcos_por_proceso > cantidad_marcos_ocupados_proceso || frame_libre >= 0 ) {
+    if (marcos_por_proceso > cantidad_marcos_ocupados_proceso) {
         void* pagina_swap = obtener_bloque_proceso_desde_swap(registro_tabla_paginas->posicion_swap);
         memcpy(espacio_usuario_memoria + (frame_libre * tamanio_pagina), pagina_swap, tamanio_pagina);
         registro_tabla_paginas->frame = (uint32_t) frame_libre;
         registro_tabla_paginas->presencia = 1;
         registro_tabla_paginas->uso = 1;
+        agregar_a_cola_frames_por_paginas(registro_tabla_paginas);
+    }
+    else {
+        if (string_equals_ignore_case(algoritmo_reemplazo, "CLOCK")) {
+            //ejecuta clock
+            log_info(logger, "tiene que ejecutar clock");
+            ejecutar_clock(registro_tabla_paginas);
+        }
+        else {
+           // ejecuta clock modificado
+            log_info(logger, "tiene que ejecutar clock modificado");
+
+        }
+        //ejecutar algoritmo de reemplazo
     }
     enviar_codigo_op(socket_kernel, PAGE_FAULT_ATENDIDO);
-    log_info(logger, string_from_format("Envié PAGE_FAULT_ATENDIDO a kernel para frame: %d", frame_libre));
 }
 
 
@@ -428,4 +460,57 @@ t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(){
     registro = (t_registro_tabla_paginas *) queue_pop(cola_pid_registro_tabla_paginas);
     pthread_mutex_unlock(&mutex_listas_frames_pendientes);
     return registro;
+}
+
+void agregar_a_cola_frames_por_paginas(t_registro_tabla_paginas* registro_tabla_paginas) {
+
+    t_queue* cola_frames_paginas = dictionary_get(frames_ocupados, string_itoa(registro_tabla_paginas->pid));
+    if (cola_frames_paginas != NULL) {
+        queue_push(cola_frames_paginas, registro_tabla_paginas);
+    }
+    else {
+        t_queue * cola = queue_create();
+        queue_push(cola, registro_tabla_paginas);
+        dictionary_put(frames_ocupados, string_itoa(registro_tabla_paginas->pid), cola);
+    }
+}
+
+void ejecutar_clock(t_registro_tabla_paginas* registro_tabla_paginas_nuevo){
+    t_queue* paginas_frames_proceso =  dictionary_get(frames_ocupados, string_itoa((int) registro_tabla_paginas_nuevo->pid));
+    uint hay_pagina_victima = 0;
+
+    while(hay_pagina_victima == 0) {
+        t_registro_tabla_paginas* registro = queue_pop(paginas_frames_proceso);
+        if (registro->uso == 0) {
+            registro->presencia = 0;
+            registro_tabla_paginas_nuevo->presencia = 1;
+            registro_tabla_paginas_nuevo->uso = 1;
+            registro_tabla_paginas_nuevo->frame = registro->frame;
+            //actualizar swap si el bit de moficiado del registro victima estaba en 1
+            queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+            hay_pagina_victima = 1;
+        } else {
+            registro->uso = 0;
+            queue_push(paginas_frames_proceso, registro);
+        }
+    }
+
+}
+
+void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_nuevo ){
+    t_queue* paginas_frames_proceso =  dictionary_get(frames_ocupados, string_itoa((int) registro_tabla_paginas_nuevo->pid));
+    t_registro_tabla_paginas* registro = queue_pop(paginas_frames_proceso);
+
+    if (registro->uso == 0) {
+        registro->presencia = 0;
+        registro_tabla_paginas_nuevo->presencia = 1;
+        registro_tabla_paginas_nuevo->uso = 1;
+        registro_tabla_paginas_nuevo->frame = registro->frame;
+        queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+
+    } else {
+        registro->uso = 0;
+        queue_push(paginas_frames_proceso, registro);
+    }
+
 }

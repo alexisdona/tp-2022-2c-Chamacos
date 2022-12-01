@@ -22,6 +22,15 @@ typedef struct {
     t_list* registro_tabla_paginas;
 } t_tabla_paginas;
 
+typedef struct {
+    uint32_t numero_pagina;
+    uint32_t frame;
+    uint uso;
+    uint modificado;
+} t_frame_ocupado;
+
+t_queue* paginas_frames;
+t_dictionary* frames_ocupados;
 t_config* memoria_config;
 t_config* communication_config;
 t_log* logger;
@@ -91,5 +100,12 @@ void enviar_marco(int cliente_fd, int marco);
 void* buscar_marcos_para_procesos(void*);
 void actualizar_lista_frames_pendientes(t_registro_tabla_paginas* registro);
 t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes();
+void agregar_a_cola_frames_por_paginas(t_registro_tabla_paginas* registro_tabla_paginas);
+void actualizar_bit_modificado(t_registro_tabla_paginas* registro);
+void actualizar_bit_uso(t_registro_tabla_paginas* registro);
+t_registro_tabla_paginas *obtener_registro_tabla_paginas(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
+void ejecutar_clock(t_registro_tabla_paginas * registro_tabla_paginas_nuevo);
+void ejecutar_clock_modificado(t_registro_tabla_paginas * registro_tabla_paginas_nuevo);
+
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H
