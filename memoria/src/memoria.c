@@ -346,7 +346,7 @@ void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas
         else {
            // ejecuta clock modificado
             log_info(logger, "tiene que ejecutar clock modificado");
-
+            ejecutar_clock_modificado(registro_tabla_paginas);
         }
         //ejecutar algoritmo de reemplazo
     }
@@ -498,19 +498,43 @@ void ejecutar_clock(t_registro_tabla_paginas* registro_tabla_paginas_nuevo){
 }
 
 void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_nuevo ){
+
     t_queue* paginas_frames_proceso =  dictionary_get(frames_ocupados, string_itoa((int) registro_tabla_paginas_nuevo->pid));
-    t_registro_tabla_paginas* registro = queue_pop(paginas_frames_proceso);
+    uint hay_pagina_victima = 0;
+    uint32_t vuelta_algoritmo = 0;
+    t_registro_tabla_paginas* registro;
+    while(hay_pagina_victima == 0) {
+         registro = queue_pop(paginas_frames_proceso);
+        // busco (0,0)
+        if (registro->uso == 0 && registro->modificado == 0) {
+            registro->presencia = 0;
+            registro_tabla_paginas_nuevo->presencia = 1;
+            registro_tabla_paginas_nuevo->uso = 1;
+            registro_tabla_paginas_nuevo->frame = registro->frame;
+            //actualizar swap si el bit de moficiado del registro victima estaba en 1
+            queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+            hay_pagina_victima = 1;
+        } else {
+            queue_push(paginas_frames_proceso, registro);
+            vuelta_algoritmo+=1;
+            if (vuelta_algoritmo >= marcos_por_proceso) {
+                //busco (0,1)
+                registro = queue_pop(paginas_frames_proceso);
+                if (registro->uso == 0 && registro->modificado == 1) {
+                    registro->presencia = 0;
+                    registro_tabla_paginas_nuevo->presencia = 1;
+                    registro_tabla_paginas_nuevo->uso = 1;
+                    registro_tabla_paginas_nuevo->frame = registro->frame;
+                    //actualizar swap si el bit de moficiado del registro victima estaba en 1
+                    queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+                    hay_pagina_victima = 1;
+                }
+                else {
+                    registro->uso = 0;
+                    queue_push(paginas_frames_proceso, registro);
+                }
+            }
+        }
 
-    if (registro->uso == 0) {
-        registro->presencia = 0;
-        registro_tabla_paginas_nuevo->presencia = 1;
-        registro_tabla_paginas_nuevo->uso = 1;
-        registro_tabla_paginas_nuevo->frame = registro->frame;
-        queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
-
-    } else {
-        registro->uso = 0;
-        queue_push(paginas_frames_proceso, registro);
     }
-
 }
