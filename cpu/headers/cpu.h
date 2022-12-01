@@ -35,7 +35,9 @@ typedef struct
 int socket_kernel_dispatch, socket_kernel_interrupt, socket_memoria;
 
 uint32_t tamanio_pagina, entradas_por_tabla, entradas_max_tlb;
-t_list* tlb;
+t_list* tlb_general;
+t_list* tlb_proceso_actual;
+
 char* algoritmo_reemplazo_tlb;
 
 t_config* cpu_config;
@@ -87,4 +89,9 @@ uint32_t leer_en_memoria(punteros_cpu * punteros_cpu);
 int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
 void escribir_en_memoria(punteros_cpu * direccion_fisica, uint32_t valor);
 uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada);
+
+static bool comparator_pid_tlb (void* entrada1);
+t_list* obtener_tlb_proceso_actual();
+void actualizar_tlb_general();
+
 #endif //TP_2022_2C_CHAMACOS_CPU_H

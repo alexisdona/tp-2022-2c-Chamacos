@@ -12,7 +12,8 @@ int main(int argc, char* argv[]){
     logger = iniciar_logger(LOG_FILE,LOG_NAME);
     cpu_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
-    tlb = list_create();
+    tlb_general = list_create();
+    tlb_proceso_actual = list_create();
 	lista_dispositivos = config_get_array_value(cpu_config,"DISPOSITIVOS_IO");
 
 	char* IP_MEMORIA = config_get_string_value(communication_config,"IP_MEMORIA");
@@ -69,8 +70,10 @@ void* conexion_dispatch(void* socket){
 		if(codigo_operacion == PCB){
 			pcb = recibir_PCB(socket_dispatch);
 			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
+            tlb_proceso_actual = obtener_tlb_proceso_actual();
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
+            actualizar_tlb_general();
 			enviar_PCB(socket_dispatch, pcb,estado_proceso);
 			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
 			pcb = NULL;
@@ -320,9 +323,9 @@ int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pa
     tlb_entrada * entrada_tlb = malloc(sizeof(tlb_entrada));
     uint32_t instante_referencia = 0; 
 
-    if (list_size(tlb) > 0) {
-        for (int i=0; i < list_size(tlb); i++) {
-            entrada_tlb = (tlb_entrada *) list_get(tlb,i);
+    if (list_size(tlb_proceso_actual) > 0) {
+        for (int i=0; i < list_size(tlb_proceso_actual); i++) {
+            entrada_tlb = (tlb_entrada *) list_get(tlb_proceso_actual,i);
             if (entrada_tlb->pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
                 entrada_tlb->instante_referencia = instante_referencia + 1;
                 return entrada_tlb->marco;
@@ -335,8 +338,8 @@ int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pa
 
 void reemplazar_entrada_tlb(tlb_entrada* entrada) {
     if (strcmp(algoritmo_reemplazo_tlb, "FIFO") ==0){
-        list_remove(tlb, 0);
-        list_add(tlb, entrada);
+        list_remove(tlb_proceso_actual, 0);
+        list_add(tlb_proceso_actual, entrada);
     }
     else {
         /*
@@ -348,20 +351,20 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
         uint32_t indice_victima = obtener_indice_entrada_menor_instante_referencia(&instante_referencia_nueva_entrada);
         //Actualizo con el instante de referencia correspondiente para la entrada nueva
         entrada->instante_referencia = instante_referencia_nueva_entrada + 1;
-        list_remove(tlb,indice_victima);
-        list_add_in_index(tlb,indice_victima,entrada);
+        list_remove(tlb_proceso_actual,indice_victima);
+        list_add_in_index(tlb_proceso_actual,indice_victima,entrada);
     }
 }
 
 uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada){
 
     uint32_t indice = 0;
-    tlb_entrada* entrada_i = list_get(tlb, 0);
+    tlb_entrada* entrada_i = list_get(tlb_proceso_actual, 0);
 
     uint32_t instante_referencia_minimo = entrada_i->instante_referencia;
 
-    for(uint32_t i=0; i < list_size(tlb); i++){
-        entrada_i = list_get(tlb, i);
+    for(uint32_t i=0; i < list_size(tlb_proceso_actual); i++){
+        entrada_i = list_get(tlb_proceso_actual, i);
         
         //Obtengo el instante de referencia mas chico para reemplazar esa entrada
         if(instante_referencia_minimo > entrada_i->instante_referencia){
@@ -385,17 +388,17 @@ void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagi
     tlb_entrada->pagina = numero_pagina;
     tlb_entrada->marco = marco;
     tlb_entrada->instante_referencia=1;
-    if (list_size(tlb) >= entradas_max_tlb){
+    if (list_size(tlb_proceso_actual) >= entradas_max_tlb){
         reemplazar_entrada_tlb(tlb_entrada);
     } else {
-        list_add(tlb, tlb_entrada);
+        list_add(tlb_proceso_actual, tlb_entrada);
     }
     imprimir_entradas_tlb();
 }
 
 void imprimir_entradas_tlb() {
-    for (int i=0; i < tlb->elements_count; i++) {
-        tlb_entrada* entrada = list_get(tlb, i);
+    for (int i=0; i < tlb_proceso_actual->elements_count; i++) {
+        tlb_entrada* entrada = list_get(tlb_proceso_actual, i);
        log_info(logger,string_from_format(YEL"<ENTRADA_TLB:%d>|PID:<%d>|SEGMENTO:<%d>|PAGINA:<%d>|MARCO:<%d>"RESET,
                                           i,
                                           entrada->pid,
@@ -410,7 +413,7 @@ static bool comparator (void* entrada1, void* entrada2) {
 }
 
 void limpiar_tlb(){
-    list_clean(tlb);
+    list_clean(tlb_proceso_actual);
 }
 
 /*
@@ -418,8 +421,8 @@ void limpiar_tlb(){
  * */
 void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
     tlb_entrada * entrada;
-    for(int i=0; i< list_size(tlb);i++) {
-        entrada = list_get(tlb, i);
+    for(int i=0; i< list_size(tlb_proceso_actual);i++) {
+        entrada = list_get(tlb_proceso_actual, i);
         if (entrada->marco == marco && numero_pagina!= entrada->pagina) {
             entrada->pagina = numero_pagina;
             entrada->instante_referencia=1;
@@ -508,4 +511,38 @@ void escribir_en_memoria(punteros_cpu * punteros_cpu, uint32_t valor) {
     }
 }
 
+t_list* obtener_tlb_proceso_actual(){
+    return list_filter(tlb_general, comparator_pid_tlb);
+}
 
+static bool comparator_pid_tlb (void* entrada1) {
+    return (((tlb_entrada *) entrada1)->pid) == pcb->pid;
+}
+
+void actualizar_tlb_general(){
+   
+    for(uint32_t i=0; i<list_size(tlb_general); i++){
+        tlb_entrada* entrada_i = list_get(tlb_general,i);
+        if(entrada_i->pid == pcb->pid && !list_is_empty(tlb_proceso_actual)){
+            tlb_entrada* entrada_tlb_proceso_actual = list_remove(tlb_proceso_actual,0);
+            list_replace(tlb_general,i,entrada_tlb_proceso_actual);
+        }
+    }
+
+    while(!list_is_empty(tlb_proceso_actual)){
+        tlb_entrada* entrada_tlb_proceso = list_remove(tlb_proceso_actual,0);
+        list_add(tlb_general,entrada_tlb_proceso);
+    }
+
+    if(estado_proceso == FINALIZAR_PROCESO){
+        for(uint32_t i=0; i<list_size(tlb_general); i++){
+            tlb_entrada* entrada = list_get(tlb_general,i); 
+            if( entrada->pid == pcb->pid){
+                list_remove(tlb_general,i);
+                i--;
+                free(entrada);
+            }
+        }
+    }
+
+}
