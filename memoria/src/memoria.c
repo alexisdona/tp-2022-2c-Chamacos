@@ -32,8 +32,7 @@ int main(int argc, char* argv[]){
     pthread_detach(thread_escucha_kernel);
     
     pthread_create(&buscador_marcos, NULL, buscar_marcos_para_procesos, NULL);
-
-    //pthread_create(&buscador_marcos, NULL, buscar);
+    pthread_detach(buscador_marcos);
 
     socket_srv_memoria = levantar_servidor();
     log_info(logger, "Esperando CPU");
@@ -173,10 +172,11 @@ void crear_archivo_swap() {
 
 void escuchar_cliente(int socket_server, t_log* logger) {
     socket_cpu = esperar_cliente(socket_server, logger);
+    void* retorno;
     if (socket_cpu != -1) {
         pthread_t hilo;
         pthread_create(&hilo, NULL, (void*) procesar_conexion, NULL);
-        pthread_detach(hilo);
+        pthread_join(hilo,&retorno);
     }
 
 }
@@ -340,19 +340,29 @@ void *conexion_kernel(void* socket){
     log_info(logger, "socket_kernel: %d", socket_kernel);
     while(socket_kernel != -1) {
         op_code codigo_operacion = recibir_operacion(socket_kernel);
+        t_pcb* pcb = recibir_PCB(socket_kernel);
         switch(codigo_operacion) {
             case CREAR_ESTRUCTURAS_ADMIN:
                 ;
-                log_info(logger, "creando estructuras administrativas");
-                t_pcb* pcb = recibir_PCB(socket_kernel);
+                log_info(logger, "Creando estructuras administrativas");
                 uint32_t contador_paginas =0;
+                pthread_mutex_lock(&liberar_estructuras);
                 for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
                     t_segmento * segmento;
                     segmento = list_get(pcb->tabla_segmentos, i);
                     segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid, contador_paginas)-1);
                     contador_paginas = contador_paginas + (segmento->tamanio_segmento / tamanio_pagina);
                 }
+                pthread_mutex_unlock(&liberar_estructuras);
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
+                break;
+
+            case FINALIZAR_PROCESO:
+                ;
+                log_info(logger, "Liberando memoria del proceso");
+                pthread_mutex_lock(&liberar_estructuras);
+                //Liberar estructuras
+                pthread_mutex_unlock(&liberar_estructuras);
                 break;
             default:
                 break;
