@@ -149,7 +149,6 @@ void crear_archivo_swap() {
     // lleno las páginas del proceso con enteros partiendo desde id_proceso
     for(int i=0; i< cantidad_bloques ; i++) {
         memcpy(str + (sizeof(uint32_t) *i) , &valor, sizeof(uint32_t));
-        valor+=1;
     }
 
 /*
@@ -170,24 +169,6 @@ void crear_archivo_swap() {
 
     fclose(archivo_swap);
     free(str);
-}
-
-void mostrar_contenido_archivo_swap() {
-    int archivo_swap = open(path_swap, O_RDWR);
-    struct stat sb;
-    if (fstat(archivo_swap,&sb) == -1) {
-        perror("No se pudo obtener el size del archivo swap: ");
-    }
-
-    if (archivo_swap != NULL) {
-        void* lectura = malloc(sb.st_size);
-        read(archivo_swap, lectura, sb.st_size );
-        printf(YEL"\n\nEL CONTENIDO DEL ARCHIVO POST SWAPEO\n\n"RESET);
-          for(int i=0; i< sb.st_size / sizeof (uint32_t); i++) {
-              uint32_t* apuntado=  lectura+ sizeof(uint32_t) *i;
-              printf("\nvalor apuntado en posición del arhivo actualizado%d-->%d\n",i, *apuntado);
-          }
-    }
 }
 
 void escuchar_cliente(int socket_server, t_log* logger) {
@@ -482,11 +463,13 @@ void ejecutar_clock(t_registro_tabla_paginas* registro_tabla_paginas_nuevo){
     while(hay_pagina_victima == 0) {
         t_registro_tabla_paginas* registro = queue_pop(paginas_frames_proceso);
         if (registro->uso == 0) {
+            if (registro->modificado == 1) {
+                actualizar_pagina_en_swap(registro);
+            }
             registro->presencia = 0;
             registro_tabla_paginas_nuevo->presencia = 1;
             registro_tabla_paginas_nuevo->uso = 1;
             registro_tabla_paginas_nuevo->frame = registro->frame;
-            //actualizar swap si el bit de moficiado del registro victima estaba en 1
             queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
             hay_pagina_victima = 1;
         } else {
@@ -511,7 +494,6 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
             registro_tabla_paginas_nuevo->presencia = 1;
             registro_tabla_paginas_nuevo->uso = 1;
             registro_tabla_paginas_nuevo->frame = registro->frame;
-            //actualizar swap si el bit de moficiado del registro victima estaba en 1
             queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
             hay_pagina_victima = 1;
         } else {
@@ -521,6 +503,7 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
                 //busco (0,1)
                 registro = queue_pop(paginas_frames_proceso);
                 if (registro->uso == 0 && registro->modificado == 1) {
+                    actualizar_pagina_en_swap(registro);
                     registro->presencia = 0;
                     registro_tabla_paginas_nuevo->presencia = 1;
                     registro_tabla_paginas_nuevo->uso = 1;
@@ -537,4 +520,47 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
         }
 
     }
+}
+
+void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
+    mostrar_contenido_swap(registro->posicion_swap);
+    void* pagina = malloc(tamanio_pagina);
+    memcpy(pagina, espacio_usuario_memoria+(registro->frame*tamanio_pagina), tamanio_pagina);
+    FILE *archivo_swap = fopen(path_swap, "wb");
+    fseek(archivo_swap, registro->posicion_swap, SEEK_SET);
+    if (archivo_swap != NULL) {
+        fwrite(pagina, tamanio_pagina, 1, archivo_swap);
+    }
+    else {
+        perror("Error abriendo el archivo swap: ");
+    }
+    fclose(archivo_swap);
+    mostrar_contenido_swap(registro->posicion_swap);
+    free(pagina);
+}
+/*******
+ * FUNCIONES AUXILIARES
+ */
+
+void mostrar_contenido_swap(uint32_t puntero_desde) {
+
+    void* pagina = malloc(tamanio_pagina);
+    FILE *archivo_swap = fopen(path_swap, "rb");
+    fseek(archivo_swap, puntero_desde, SEEK_SET);
+    if (archivo_swap != NULL) {
+        fread(pagina, tamanio_pagina, 1, archivo_swap);
+    }
+    else {
+        perror("Error abriendo el archivo swap: ");
+    }
+
+
+    for(int i=0; i< tamanio_pagina; i++) {
+        uint32_t* apuntado=  pagina + sizeof(uint32_t) *i;
+        printf("\nvalor[%d]-->%d",i, *apuntado);
+    }
+
+
+    fclose(archivo_swap);
+    free(pagina);
 }
