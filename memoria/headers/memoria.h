@@ -74,6 +74,7 @@ t_list* tabla_paginas;
 sem_t buscar_frame;
 
 pthread_mutex_t mutex_tabla_paginas;
+pthread_mutex_t liberar_estructuras;
 
 //Obtiene el ip y puerto del kernel para iniciar el servidor, devuele el socket
 int levantar_servidor();
