@@ -441,7 +441,7 @@ uint32_t leer_en_memoria(punteros_cpu * punteros_cpu) {
 
     uint32_t valor_leido;
     int obtuve_valor = 0;
-    while (socket_memoria != -1 && obtuve_valor == 0) {
+    if(socket_memoria != -1 && obtuve_valor == 0) {
         op_code cod_op = recibir_operacion(socket_memoria);
         if(cod_op == LEER_MEMORIA){
             void* buffer = recibir_buffer(socket_memoria);
@@ -497,12 +497,13 @@ void escribir_en_memoria(punteros_cpu * punteros_cpu, uint32_t valor) {
     enviar_paquete(paquete, socket_memoria);
     eliminar_paquete(paquete);
 
-    int recibi_mensaje = 0;
-    while (socket_memoria != -1 && recibi_mensaje == 0) {
+    //int recibi_mensaje = 0;
+    //if(socket_memoria != -1 && recibi_mensaje == 0) {
+    if(socket_memoria != -1){
         op_code cod_op = recibir_operacion(socket_memoria);
         if(cod_op == MENSAJE){
             recibir_mensaje(socket_memoria, logger);
-            recibi_mensaje = 1;
+            //recibi_mensaje = 1;
         }
     }
 }
