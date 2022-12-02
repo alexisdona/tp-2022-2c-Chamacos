@@ -45,7 +45,7 @@ uint32_t retardo_memoria;
 uint32_t tamanio_swap;
 uint32_t marcos_por_proceso;
 void* espacio_usuario_memoria;
-t_bitarray* frames_disponibles;
+t_bitarray* bitarray_frames;
 void* bloque_frames_libres;
 char* algoritmo_reemplazo;
 char* path_swap;
@@ -105,6 +105,7 @@ void ejecutar_clock(t_registro_tabla_paginas * registro_tabla_paginas_nuevo);
 void ejecutar_clock_modificado(t_registro_tabla_paginas * registro_tabla_paginas_nuevo);
 void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro);
 void mostrar_contenido_swap(uint32_t puntero);
-
+void liberar_tablas_paginas_proceso(uint32_t pid);
+void inicializar_bitmap_frames();
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

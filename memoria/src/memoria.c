@@ -3,7 +3,7 @@
 #include "../headers/memoria.h"
 
 
-
+void mostar_bitmap_frames();
 
 int main(int argc, char* argv[]){
 
@@ -83,7 +83,9 @@ int levantar_servidor(){
 void crear_bitmap_frames_libres() {
     uint32_t tamanio_bit_array = tamanio_memoria / tamanio_pagina;
     bloque_frames_libres = malloc(tamanio_bit_array);
-    frames_disponibles = bitarray_create_with_mode(bloque_frames_libres, tamanio_bit_array, LSB_FIRST);
+    bitarray_frames = bitarray_create_with_mode(bloque_frames_libres, tamanio_bit_array, LSB_FIRST);
+    inicializar_bitmap_frames();
+
 }
 
 void iniciar_estructuras_administrativas_kernel() {
@@ -276,8 +278,6 @@ void procesar_conexion(void* args) {
                     enviar_codigo_op(socket_cpu,PAGE_FAULT);
                 }
                 break;
-            case TERMINAR_PROCESO:
-                break;
             case -1:
                 log_info(logger, "El cliente se desconectó");
                 socket_cpu = -1;
@@ -340,10 +340,10 @@ void *conexion_kernel(void* socket){
     log_info(logger, "socket_kernel: %d", socket_kernel);
     while(socket_kernel != -1) {
         op_code codigo_operacion = recibir_operacion(socket_kernel);
-        t_pcb* pcb = recibir_PCB(socket_kernel);
         switch(codigo_operacion) {
             case CREAR_ESTRUCTURAS_ADMIN:
                 ;
+                t_pcb* pcb = recibir_PCB(socket_kernel);
                 log_info(logger, "Creando estructuras administrativas");
                 uint32_t contador_paginas =0;
                 pthread_mutex_lock(&liberar_estructuras);
@@ -359,9 +359,11 @@ void *conexion_kernel(void* socket){
 
             case FINALIZAR_PROCESO:
                 ;
+                log_info(logger, "entra en finalizar proceso");
+                uint32_t pid_finalizado = recibir_valor(socket_kernel);
                 log_info(logger, "Liberando memoria del proceso");
                 pthread_mutex_lock(&liberar_estructuras);
-                //Liberar estructuras
+                liberar_tablas_paginas_proceso(pid_finalizado);
                 pthread_mutex_unlock(&liberar_estructuras);
                 break;
             default:
@@ -389,9 +391,9 @@ void actualizar_puntero_swap(){
 
 int obtener_numero_frame_libre() {
 
-    for(int i= 0; frames_disponibles->size; i++) {
-        if ( bitarray_test_bit(frames_disponibles, i) == 0) {
-            bitarray_set_bit(frames_disponibles, i);
+    for(int i= 0; bitarray_frames->size; i++) {
+        if (bitarray_test_bit(bitarray_frames, i) == 0) {
+            bitarray_set_bit(bitarray_frames, i);
             return i;
         }
     }
@@ -533,7 +535,7 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
 }
 
 void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
-    mostrar_contenido_swap(registro->posicion_swap);
+  //  mostrar_contenido_swap(registro->posicion_swap);
     void* pagina = malloc(tamanio_pagina);
     memcpy(pagina, espacio_usuario_memoria+(registro->frame*tamanio_pagina), tamanio_pagina);
     FILE *archivo_swap = fopen(path_swap, "wb");
@@ -545,7 +547,7 @@ void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
         perror("Error abriendo el archivo swap: ");
     }
     fclose(archivo_swap);
-    mostrar_contenido_swap(registro->posicion_swap);
+  //  mostrar_contenido_swap(registro->posicion_swap);
     free(pagina);
 }
 /*******
@@ -566,11 +568,41 @@ void mostrar_contenido_swap(uint32_t puntero_desde) {
 
 
     for(int i=0; i< tamanio_pagina; i++) {
-        uint32_t* apuntado=  pagina + sizeof(uint32_t) *i;
-        printf("\nvalor[%d]-->%d",i, *apuntado);
+        uint32_t *apuntado = pagina + sizeof(uint32_t) * i;
+        printf("\nvalor[%d]-->%d", i, *apuntado);
     }
-
 
     fclose(archivo_swap);
     free(pagina);
 }
+
+void liberar_tablas_paginas_proceso(uint32_t pid) {
+//mostar_bitmap_frames();
+    for (int i=0; i<list_size(tabla_paginas); i++) {
+        t_list* registros_tabla_paginas = list_get(tabla_paginas, i);
+        for (int j=0; j< list_size(registros_tabla_paginas); j++) {
+            t_registro_tabla_paginas* registro = (t_registro_tabla_paginas *) list_get(registros_tabla_paginas, j);
+            if (registro->pid == pid) {
+                registro->presencia = 0;
+                bitarray_clean_bit(bitarray_frames, registro->frame);
+            }
+        }
+    }
+
+    //mostar_bitmap_frames();
+}
+
+void mostar_bitmap_frames() {
+    log_info(logger, "valores del bitarray despues de liberar memoria");
+    for(int i= 0; i<(tamanio_memoria/tamanio_pagina); i++) {
+        log_info(logger, string_from_format("bitarray_frames[%d]:%d", i, bitarray_test_bit(bitarray_frames, i)));
+    }
+}
+
+
+void inicializar_bitmap_frames() {
+    for(int i= 0; i<(tamanio_memoria/tamanio_pagina); i++) {
+        bitarray_clean_bit(bitarray_frames, i);
+    }
+}
+

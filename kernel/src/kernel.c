@@ -470,7 +470,7 @@ void* finalizador_procesos(void* x){
 
         log_info(logger,BLU"Conexion Consola: Finalizar consola"WHT);
         enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
-        enviar_PCB(socket_memoria,pcb,FINALIZAR_PROCESO);
+        enviar_entero(socket_memoria, pcb->pid, FINALIZAR_PROCESO);
         free(pcb);
         sem_post(&grado_multiprogramacion);
     }
