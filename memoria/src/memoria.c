@@ -112,10 +112,11 @@ void crear_espacio_usuario() {
       */
 }
 
-uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas ) {
+uint32_t crear_estructuras_administrativas_proceso(uint32_t numero_segmento, uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas ) {
     int cantidad_registros_tabla_segmentos = MAX(tamanio_segmento/tamanio_pagina, 1);
     for(int i=0; i < cantidad_registros_tabla_segmentos ; i++) {
         t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
+        registro_tabla_paginas->numero_segmento = (uint32_t) numero_segmento;
         registro_tabla_paginas->numero_pagina = contador_paginas;
         registro_tabla_paginas->pid = pid;
         registro_tabla_paginas->frame = 0;
@@ -126,9 +127,6 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, ui
         actualizar_puntero_swap();
         list_add(registros_tabla_paginas, registro_tabla_paginas);
         contador_paginas++;
-        log_info(logger, string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->pid: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->pid));
-        log_info(logger, string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->numero_pagina: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->numero_pagina));
-
         /* log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->frame: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->frame));
          log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->modificado: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->modificado));
          log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->presencia: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->presencia));
@@ -219,7 +217,7 @@ void procesar_conexion(void* args) {
                 memcpy(&valor_escribir_memoria, buffer_escribir_memoria+desplazamiento, sizeof (uint32_t));
                 desplazamiento += sizeof (uint32_t);
                 memcpy((espacio_usuario_memoria +(marco_escribir_memoria*tamanio_pagina+desplazamiento_escribir_memoria)), &valor_escribir_memoria, sizeof(uint32_t));
-
+                log_info(logger, string_from_format(BLU"Acceso a espacio de usuario: “PID: <%d> - Acción: <ESCRIBIR> - Dirección física: <%d_%d>"RESET, id_proceso_escribir_memoria, marco_escribir_memoria, desplazamiento_escribir_memoria));
                 enviar_mensaje(string_from_format("Escribi el valor: %d en el marco: %d desplazamiento :%d", valor_escribir_memoria, marco_escribir_memoria, desplazamiento_escribir_memoria), socket_cpu);
 
                 t_registro_tabla_paginas * registro_escrito_memoria = obtener_registro_tabla_paginas(indice_tabla_paginas_escribir_memoria, numero_pagina_escribir_memoria);
@@ -245,6 +243,8 @@ void procesar_conexion(void* args) {
                 despl+=sizeof(uint32_t);
                 memcpy(&desplazamiento_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
                 uint32_t* valor_leido = (uint32_t *) (espacio_usuario_memoria +(marco_leer_memoria*tamanio_pagina+desplazamiento_leer_memoria));
+                log_info(logger, string_from_format(GRN"Acceso a espacio de usuario: “PID: <%d> - Acción: <LEER> - Dirección física: <%d_%d>"RESET, id_proceso_leer_memoria, marco_leer_memoria, desplazamiento_leer_memoria));
+
                 enviar_entero(socket_cpu, *valor_leido, LEER_MEMORIA);
                 t_registro_tabla_paginas * registro_leido_memoria = obtener_registro_tabla_paginas(indice_tabla_paginas_escribir_memoria, numero_pagina_escribir_memoria);
                 actualizar_bit_uso(registro_leido_memoria);
@@ -268,11 +268,10 @@ void procesar_conexion(void* args) {
                 t_registro_tabla_paginas* registro_tabla_paginas = obtener_registro_tabla_paginas(nro_tabla_obtener_marco, numero_pag_obtener_marco);
 
                 if(registro_tabla_paginas->presencia) {
-                    log_info(logger,"Presencia");
                     marco = registro_tabla_paginas->frame;
                     enviar_marco(socket_cpu, marco);
+                    log_info(logger, string_from_format(CYN"Acceso a Tabla de Páginas: “PID: <%d> - Página: <%d> - Marco: <%d>"RESET, registro_tabla_paginas->pid, registro_tabla_paginas->numero_pagina, registro_tabla_paginas->frame));
                 } else {
-                    log_info(logger,"MEMORIA --> Enviando page_fault");
                     actualizar_lista_frames_pendientes(registro_tabla_paginas);
                     sem_post(&buscar_frame);
                     enviar_codigo_op(socket_cpu,PAGE_FAULT);
@@ -316,17 +315,18 @@ void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas
         registro_tabla_paginas->frame = (uint32_t) frame_libre;
         registro_tabla_paginas->presencia = 1;
         registro_tabla_paginas->uso = 1;
+        log_info(logger, string_from_format(CYN"Lectura de Página de SWAP: “SWAP IN -  PID: <%d> - Marco: <%d> - Page In: <%d>|<%d>"RESET,
+                                            registro_tabla_paginas->pid, registro_tabla_paginas->frame, registro_tabla_paginas->numero_segmento, registro_tabla_paginas->numero_pagina));
+
         agregar_a_cola_frames_por_paginas(registro_tabla_paginas);
     }
     else {
         if (string_equals_ignore_case(algoritmo_reemplazo, "CLOCK")) {
             //ejecuta clock
-            log_info(logger, "tiene que ejecutar clock");
             ejecutar_clock(registro_tabla_paginas);
         }
         else {
            // ejecuta clock modificado
-            log_info(logger, "tiene que ejecutar clock modificado");
             ejecutar_clock_modificado(registro_tabla_paginas);
         }
         //ejecutar algoritmo de reemplazo
@@ -350,8 +350,9 @@ void *conexion_kernel(void* socket){
                 for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
                     t_segmento * segmento;
                     segmento = list_get(pcb->tabla_segmentos, i);
-                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid, contador_paginas)-1);
+                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(i, segmento->tamanio_segmento, pcb->pid, contador_paginas)-1);
                     contador_paginas = contador_paginas + (segmento->tamanio_segmento / tamanio_pagina);
+                    log_info(logger, string_from_format(BLU"Creación de tabla de paginas: PID: <%d> - Segmento: <%d> - TAMAÑO: <%d> paginas "RESET, pcb->pid, i, (segmento->tamanio_segmento/tamanio_pagina)));
                 }
                 pthread_mutex_unlock(&liberar_estructuras);
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
@@ -359,11 +360,9 @@ void *conexion_kernel(void* socket){
 
             case FINALIZAR_PROCESO:
                 ;
-                log_info(logger, "entra en finalizar proceso");
-                uint32_t pid_finalizado = recibir_valor(socket_kernel);
-                log_info(logger, "Liberando memoria del proceso");
+                t_pcb * pcb_finalizado = recibir_PCB(socket_kernel);
                 pthread_mutex_lock(&liberar_estructuras);
-                liberar_tablas_paginas_proceso(pid_finalizado);
+                liberar_tablas_paginas_proceso(pcb_finalizado->pid, pcb_finalizado->tabla_segmentos);
                 pthread_mutex_unlock(&liberar_estructuras);
                 break;
             default:
@@ -484,6 +483,9 @@ void ejecutar_clock(t_registro_tabla_paginas* registro_tabla_paginas_nuevo){
             registro_tabla_paginas_nuevo->frame = registro->frame;
             queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
             hay_pagina_victima = 1;
+            log_info(logger, string_from_format(
+                    MAG"REEMPLAZO - PID: <%d> - Marco: <%d> - Page Out: <%d>|<%d> - Page In: <%d>|<%d>"RESET,
+                    registro->pid, registro->frame, registro->numero_segmento, registro->numero_pagina, registro_tabla_paginas_nuevo->numero_segmento, registro_tabla_paginas_nuevo->numero_pagina));
         } else {
             registro->uso = 0;
             queue_push(paginas_frames_proceso, registro);
@@ -508,6 +510,9 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
             registro_tabla_paginas_nuevo->frame = registro->frame;
             queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
             hay_pagina_victima = 1;
+            log_info(logger, string_from_format(
+                    MAG"REEMPLAZO - PID: <%d> - Marco: <%d> - Page Out: <%d>|<%d> - Page In: <%d>|<%d>"RESET,
+                    registro->pid, registro->frame, registro->numero_segmento, registro->numero_pagina, registro_tabla_paginas_nuevo->numero_segmento, registro_tabla_paginas_nuevo->numero_pagina));
         } else {
             queue_push(paginas_frames_proceso, registro);
             vuelta_algoritmo+=1;
@@ -523,6 +528,9 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
                     //actualizar swap si el bit de moficiado del registro victima estaba en 1
                     queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
                     hay_pagina_victima = 1;
+                    log_info(logger, string_from_format(
+                            MAG"REEMPLAZO - PID: <%d> - Marco: <%d> - Page Out: <%d>|<%d> - Page In: <%d>|<%d>"RESET,
+                            registro->pid, registro->frame, registro->numero_segmento, registro->numero_pagina, registro_tabla_paginas_nuevo->numero_segmento, registro_tabla_paginas_nuevo->numero_pagina));
                 }
                 else {
                     registro->uso = 0;
@@ -536,6 +544,9 @@ void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_
 
 void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
   //  mostrar_contenido_swap(registro->posicion_swap);
+    log_info(logger, string_from_format(RED"Escritura de Página en SWAP: “SWAP OUT -  PID: <%d> - Marco: <%d> - Page Out: <%d>|<%d>"RESET,
+                                        registro->pid, registro->frame, registro->numero_segmento, registro->numero_pagina));
+
     void* pagina = malloc(tamanio_pagina);
     memcpy(pagina, espacio_usuario_memoria+(registro->frame*tamanio_pagina), tamanio_pagina);
     FILE *archivo_swap = fopen(path_swap, "wb");
@@ -576,20 +587,19 @@ void mostrar_contenido_swap(uint32_t puntero_desde) {
     free(pagina);
 }
 
-void liberar_tablas_paginas_proceso(uint32_t pid) {
-  //  mostar_bitmap_frames();
-    for (int i=0; i<list_size(tabla_paginas); i++) {
-        t_list* registros_tabla_paginas = list_get(tabla_paginas, i);
+void liberar_tablas_paginas_proceso(uint32_t pid, t_list* tabla_segmentos) {
+  // mostar_bitmap_frames();
+  for (int i=0; i<list_size(tabla_segmentos); i++) {
+        t_segmento* segmento = list_get(tabla_segmentos, i);
+        log_info(logger, string_from_format(YEL"Destrucción de Tabla de Páginas: PID: <%d> - Segmento: <%d> - TAMAÑO: <%d> paginas"RESET, pid, i, (segmento->tamanio_segmento/tamanio_pagina )));
+        t_list* registros_tabla_paginas = list_get(tabla_paginas, segmento->indice_tabla_paginas);
         for (int j=0; j< list_size(registros_tabla_paginas); j++) {
             t_registro_tabla_paginas* registro = (t_registro_tabla_paginas *) list_get(registros_tabla_paginas, j);
-            if (registro->pid == pid) {
                 registro->presencia = 0;
                 bitarray_clean_bit(bitarray_frames, registro->frame);
-            }
         }
     }
-
-   // mostar_bitmap_frames();
+ //  mostar_bitmap_frames();
 }
 
 void mostar_bitmap_frames() {
