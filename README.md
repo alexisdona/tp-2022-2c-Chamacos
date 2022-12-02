@@ -18,7 +18,13 @@ LINK PRUEBAS:
    Token alexis: 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
 6. Actualizar communication.config con la IP de cada VM que vamos a usar
 7. Instalar las commons con make install 
-8. Compilar el TP con make en el root del tp
-9.
+8. 
+/** COMPILACION DE TP **/
+
+9. Parado dentro de shared/src gcc -Wall -c shared_utils.c communitacion.c translation_utils.c -lcommons -lpthread
+9. Parado dentro consola/src Compilar consola: gcc -Wall consola.c -o "consola" ../../shared/src/shared_utils.o ../../shared/src/communitacion.o ../../shared/src/translation_utils.o -lcommons
+10. Parado dentro de kernel/src Compilar kernel: gcc -Wall kernel.c -o "kernel" ../../shared/src/shared_utils.o ../../shared/src/communitacion.o ../../shared/src/translation_utils.o -lcommons -lpthread
+11. Parado dentro de cpu/src Compliar cpu: gcc -Wall cpu.c -o "cpu" ../../shared/src/shared_utils.o ../../shared/src/communitacion.o ../../shared/src/translation_utils.o -lcommons -lpthread
+12. parado dentro de memoria/src Compilar memoria: gcc -Wall -o memoria.c  "memoria" ../../shared/src/shared_utils.o ../../shared/src/communitacion.o ../../shared/src/translation_utils.o -lcommons -lpthread
 
 
