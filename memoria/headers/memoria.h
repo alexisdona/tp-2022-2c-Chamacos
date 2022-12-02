@@ -9,6 +9,7 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 typedef struct {
+    uint32_t numero_segmento;
     uint32_t numero_pagina;
     uint32_t pid;
     uint32_t frame;
@@ -41,11 +42,11 @@ int socket_srv_memoria;
 uint32_t tamanio_memoria;
 uint32_t tamanio_pagina;
 uint32_t  entradas_por_tabla;
-uint32_t retardo_memoria;
+uint32_t retardo_memoria, retardo_swap;
 uint32_t tamanio_swap;
 uint32_t marcos_por_proceso;
 void* espacio_usuario_memoria;
-t_bitarray* frames_disponibles;
+t_bitarray* bitarray_frames;
 void* bloque_frames_libres;
 char* algoritmo_reemplazo;
 char* path_swap;
@@ -89,7 +90,7 @@ void *conexion_cpu(void* socket);
 void handshake_cpu_memoria(int socket_destino, uint32_t tamanio_pagina, uint32_t cantidad_entradas_tabla);
 void actualizar_puntero_swap();
 int obtener_numero_frame_libre();
-uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas);
+uint32_t crear_estructuras_administrativas_proceso(uint32_t numero_segmento, uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas);
 void* obtener_bloque_proceso_desde_swap(uint32_t posicion_swap);
 uint32_t obtener_cantidad_marcos_ocupados_proceso(uint32_t id_proceso_marco);
 void buscar_frame_libre_proceso(t_registro_tabla_paginas* registro_tabla_paginas);
@@ -105,6 +106,7 @@ void ejecutar_clock(t_registro_tabla_paginas * registro_tabla_paginas_nuevo);
 void ejecutar_clock_modificado(t_registro_tabla_paginas * registro_tabla_paginas_nuevo);
 void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro);
 void mostrar_contenido_swap(uint32_t puntero);
-
+void liberar_tablas_paginas_proceso(uint32_t pid, t_list* tabla_segmentos);
+void inicializar_bitmap_frames();
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H
