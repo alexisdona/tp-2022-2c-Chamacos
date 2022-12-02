@@ -113,7 +113,10 @@ void crear_espacio_usuario() {
 }
 
 uint32_t crear_estructuras_administrativas_proceso(uint32_t numero_segmento, uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas ) {
-    int cantidad_registros_tabla_segmentos = MAX(tamanio_segmento/tamanio_pagina, 1);
+
+    int cantidad_registros_tabla_segmentos = tamanio_segmento/tamanio_pagina;
+    cantidad_registros_tabla_segmentos = tamanio_segmento%tamanio_pagina > 0 ? cantidad_registros_tabla_segmentos + 1 : cantidad_registros_tabla_segmentos;
+
     for(int i=0; i < cantidad_registros_tabla_segmentos ; i++) {
         t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
         registro_tabla_paginas->numero_segmento = (uint32_t) numero_segmento;
@@ -291,7 +294,8 @@ void procesar_conexion(void* args) {
 
 t_registro_tabla_paginas *obtener_registro_tabla_paginas(uint32_t indice_tabla_paginas,
                                                          uint32_t numero_pagina) {
-    return (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas), numero_pagina)); }
+    return (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas), numero_pagina));
+}
 
 void actualizar_bit_modificado(t_registro_tabla_paginas* registro_tabla_paginas) {
     registro_tabla_paginas->modificado = 1;
@@ -353,7 +357,9 @@ void *conexion_kernel(void* socket){
                     segmento = list_get(pcb->tabla_segmentos, i);
                     segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(i, segmento->tamanio_segmento, pcb->pid, contador_paginas)-1);
                     contador_paginas = contador_paginas + (segmento->tamanio_segmento / tamanio_pagina);
-                    log_info(logger, string_from_format(BLU"Creación de tabla de paginas: PID: <%d> - Segmento: <%d> - TAMAÑO: <%d> paginas "RESET, pcb->pid, i, (segmento->tamanio_segmento/tamanio_pagina)));
+                    int cantidad_paginas = (segmento->tamanio_segmento)/tamanio_pagina;
+                    cantidad_paginas = (segmento->tamanio_segmento)%tamanio_pagina > 0 ? cantidad_paginas + 1 : cantidad_paginas;
+                    log_info(logger, string_from_format(BLU"Creación de tabla de paginas: PID: <%d> - Segmento: <%d> - TAMAÑO: <%d> paginas "RESET, pcb->pid, i, cantidad_paginas));
                 }
                 pthread_mutex_unlock(&liberar_estructuras);
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
@@ -593,7 +599,9 @@ void liberar_tablas_paginas_proceso(uint32_t pid, t_list* tabla_segmentos) {
   // mostar_bitmap_frames();
   for (int i=0; i<list_size(tabla_segmentos); i++) {
         t_segmento* segmento = list_get(tabla_segmentos, i);
-        log_info(logger, string_from_format(YEL"Destrucción de Tabla de Páginas: PID: <%d> - Segmento: <%d> - TAMAÑO: <%d> paginas"RESET, pid, i, (segmento->tamanio_segmento/tamanio_pagina )));
+        int cantidad_paginas = (segmento->tamanio_segmento)/tamanio_pagina;
+        cantidad_paginas = (segmento->tamanio_segmento)%tamanio_pagina > 0 ? cantidad_paginas + 1 : cantidad_paginas;
+        log_info(logger, string_from_format(YEL"Destrucción de Tabla de Páginas: PID: <%d> - Segmento: <%d> - TAMAÑO: <%d> paginas"RESET, pid, i, cantidad_paginas));
         t_list* registros_tabla_paginas = list_get(tabla_paginas, segmento->indice_tabla_paginas);
         for (int j=0; j< list_size(registros_tabla_paginas); j++) {
             t_registro_tabla_paginas* registro = (t_registro_tabla_paginas *) list_get(registros_tabla_paginas, j);

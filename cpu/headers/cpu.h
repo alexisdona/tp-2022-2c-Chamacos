@@ -21,7 +21,7 @@ typedef struct
     uint32_t indice_tabla_paginas;
     uint32_t numero_pagina;
     dir_fisica * direccion_fisica;
-} punteros_cpu;
+} t_punteros_cpu;
 
 typedef struct
 {
@@ -78,16 +78,16 @@ op_code operacion_IO(dispositivo,uint32_t unidades_trabajo);
 op_code operacion_EXIT();
 void chequear_interrupcion();
 void desalojo_proceso();
-punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica);
+t_punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica);
 void handshake_memoria(int conexionMemoria);
 int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina);
 void reemplazar_entrada_tlb(tlb_entrada* entrada);
 void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco);
 void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco);
 static bool comparator (void*, void*);
-uint32_t leer_en_memoria(punteros_cpu * punteros_cpu);
+uint32_t leer_en_memoria(t_punteros_cpu * punteros_cpu);
 int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
-void escribir_en_memoria(punteros_cpu * direccion_fisica, uint32_t valor);
+void escribir_en_memoria(t_punteros_cpu * direccion_fisica, uint32_t valor);
 uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada);
 
 static bool comparator_pid_tlb (void* entrada1);
