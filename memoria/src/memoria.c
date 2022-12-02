@@ -50,6 +50,7 @@ void levantar_config() {
     tamanio_pagina = config_get_int_value(memoria_config,"TAM_PAGINA");
     entradas_por_tabla = config_get_int_value(memoria_config,"ENTRADAS_POR_TABLA");
     retardo_memoria = config_get_int_value(memoria_config,"RETARDO_MEMORIA");
+    retardo_swap = config_get_int_value(memoria_config,"RETARDO_SWAP");
     algoritmo_reemplazo = config_get_string_value(memoria_config, "ALGORITMO_REEMPLAZO");
     tamanio_swap = config_get_int_value(memoria_config,"TAMANIO_SWAP");
     path_swap = config_get_string_value(memoria_config, "PATH_SWAP");
@@ -58,7 +59,6 @@ void levantar_config() {
     ip_cpu = config_get_string_value(communication_config, "IP_CPU");
     puerto_cpu = config_get_int_value(communication_config, "PUERTO_CPU_DISPATCH");
     marcos_por_proceso = config_get_int_value(memoria_config, "MARCOS_POR_PROCESO");
-
 }
 
 void validar_argumentos_main(int argumentos){
@@ -319,6 +319,7 @@ void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas
                                             registro_tabla_paginas->pid, registro_tabla_paginas->frame, registro_tabla_paginas->numero_segmento, registro_tabla_paginas->numero_pagina));
 
         agregar_a_cola_frames_por_paginas(registro_tabla_paginas);
+        usleep(retardo_swap*1000);
     }
     else {
         if (string_equals_ignore_case(algoritmo_reemplazo, "CLOCK")) {
@@ -560,6 +561,7 @@ void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
     fclose(archivo_swap);
   //  mostrar_contenido_swap(registro->posicion_swap);
     free(pagina);
+    usleep(retardo_swap*1000);
 }
 /*******
  * FUNCIONES AUXILIARES

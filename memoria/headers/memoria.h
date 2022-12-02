@@ -42,7 +42,7 @@ int socket_srv_memoria;
 uint32_t tamanio_memoria;
 uint32_t tamanio_pagina;
 uint32_t  entradas_por_tabla;
-uint32_t retardo_memoria;
+uint32_t retardo_memoria, retardo_swap;
 uint32_t tamanio_swap;
 uint32_t marcos_por_proceso;
 void* espacio_usuario_memoria;
