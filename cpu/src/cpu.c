@@ -39,7 +39,7 @@ int main(int argc, char* argv[]){
 	pthread_mutex_init(&mutex_flag_interrupcion,NULL);
 
 	retardo_operacion_cpu = config_get_int_value(cpu_config,"RETARDO_INSTRUCCION");
-	log_info(logger,string_from_format("Retardo por operacion de CPU: %ds",retardo_operacion_cpu/1000));
+	//log_info(logger,string_from_format("Retardo por operacion de CPU: %ds",retardo_operacion_cpu/1000));
 	printf("\n");
 	retardo_operacion_cpu = retardo_operacion_cpu*1000;
 
@@ -69,13 +69,13 @@ void* conexion_dispatch(void* socket){
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
 		if(codigo_operacion == PCB){
 			pcb = recibir_PCB(socket_dispatch);
-			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
+			//log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
             tlb_proceso_actual = obtener_tlb_proceso_actual();
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
             actualizar_tlb_general();
 			enviar_PCB(socket_dispatch, pcb,estado_proceso);
-			log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
+			//log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
 			pcb = NULL;
 		}else{
 			log_warning(logger,"Conexion Dispatch -> Recibio una operacion incorrecta");
@@ -200,7 +200,7 @@ op_code operacion_MOV_IN(registro_cpu registro, uint32_t direccion_logica){
         registro_cpu* registro_pcb = obtener_registro(pcb, registro);
         (*registro_pcb) = valor;
         log_info(logger, "%s",
-                 string_from_format("PID: <%d> - Acción: <LEER> - Segmento: <%d> - Pagina: <%d> - Dirección Fisica: <marco:%d-despl:%d>”",
+                 string_from_format(MAG"PID: <%d> - Acción: <LEER> - SEGMENTO: <%d> - PAGINA: <%d> - DIRECCION FISICA: <marco:%d - despl:%d>"WHT,
                                     pcb->pid, punteros_cpu->numero_segmento, punteros_cpu->numero_pagina, punteros_cpu->direccion_fisica->marco, punteros_cpu->direccion_fisica->desplazamiento));
 
         return CONTINUA_PROCESO;
@@ -218,7 +218,7 @@ op_code operacion_MOV_OUT(uint32_t direccion_logica, registro_cpu registro){
         uint32_t valor = (*registro_pcb);
         escribir_en_memoria(punteros_cpu, valor);
         log_info(logger, "%s",
-                 string_from_format(BLU"PID: <%d> - Acción: <ESCRIBIR> - Segmento: <%d> - Pagina: <%d> - Dirección Fisica: <marco:%d-despl:%d>"RESET,
+                 string_from_format(MAG"PID: <%d> - Acción: <ESCRIBIR> - SEGMENTO: <%d> - PAGINA: <%d> - DIRECCION FISICA: <marco:%d - despl:%d>"WHT,
                                     pcb->pid, punteros_cpu->numero_segmento, punteros_cpu->numero_pagina, punteros_cpu->direccion_fisica->marco, punteros_cpu->direccion_fisica->desplazamiento));
         return CONTINUA_PROCESO;
     }
@@ -247,7 +247,7 @@ op_code operacion_EXIT(){
 
 void chequear_interrupcion(){
 	printf("\n");
-	log_info(logger,"Check de interrupciones...");
+	//log_info(logger,"Check de interrupciones...");
 
 	if(hubo_interrupcion == INTERRUPCION){
 		estado_proceso = INTERRUPCION;
@@ -286,7 +286,7 @@ punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
         uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
         marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
         if (marco == -1) {
-            log_info(logger, "%s", string_from_format(RED"Page Fault PID: <%d> - Segmento: <%d> - Pagina: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+            log_info(logger, "%s", string_from_format(RED"PAGE FAULT PID: <%d> - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
             return NULL;
         }
         tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
@@ -381,7 +381,7 @@ uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_ref
 }
 
 void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco){
-    log_info(logger, "\nNUMERO_SEGMENTO: %d", numero_segmento);
+    //log_info(logger, "\nNUMERO_SEGMENTO: %d", numero_segmento);
     tlb_entrada* tlb_entrada = malloc(sizeof(uint32_t)*5);
     tlb_entrada->pid = pid;
     tlb_entrada->segmento = numero_segmento;
