@@ -577,7 +577,7 @@ void mostrar_contenido_swap(uint32_t puntero_desde) {
 }
 
 void liberar_tablas_paginas_proceso(uint32_t pid) {
-    mostar_bitmap_frames();
+  //  mostar_bitmap_frames();
     for (int i=0; i<list_size(tabla_paginas); i++) {
         t_list* registros_tabla_paginas = list_get(tabla_paginas, i);
         for (int j=0; j< list_size(registros_tabla_paginas); j++) {
@@ -589,7 +589,7 @@ void liberar_tablas_paginas_proceso(uint32_t pid) {
         }
     }
 
-    mostar_bitmap_frames();
+   // mostar_bitmap_frames();
 }
 
 void mostar_bitmap_frames() {
