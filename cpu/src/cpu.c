@@ -288,7 +288,9 @@ t_punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
             log_info(logger, "%s", string_from_format(RED"PAGE FAULT PID: <%d> - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
             return NULL;
         }
-        tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
+        else {
+            tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
+        }
     } else {
         log_info(logger, "%s", string_from_format(GRN"PID: <%d> - TLB HIT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
      }
@@ -354,9 +356,16 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
 uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada){
 
     uint32_t indice = 0;
-    tlb_entrada* entrada_i = list_get(tlb, 0);
+    uint32_t instante_referencia_minimo;
+    tlb_entrada* entrada_i;
+   if(!list_is_empty(tlb)) {
+       entrada_i = list_get(tlb, 0);
+       instante_referencia_minimo  = entrada_i->instante_referencia;
+   }else{
+       instante_referencia_minimo = 0;
+   }
 
-    uint32_t instante_referencia_minimo = entrada_i->instante_referencia;
+
 
     for(uint32_t i=0; i < list_size(tlb); i++){
         entrada_i = list_get(tlb, i);
@@ -375,21 +384,28 @@ uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_ref
     return indice;
 }
 
-void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco){
+void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco) {
     //log_info(logger, "\nNUMERO_SEGMENTO: %d", numero_segmento);
-    tlb_entrada* tlb_entrada = malloc(sizeof(uint32_t)*5);
+    tlb_entrada *tlb_entrada = malloc(sizeof(uint32_t) * 5);
     tlb_entrada->pid = pid;
     tlb_entrada->segmento = numero_segmento;
     tlb_entrada->pagina = numero_pagina;
     tlb_entrada->marco = marco;
-    tlb_entrada->instante_referencia=1;
-    if (list_size(tlb) >= entradas_max_tlb){
-        reemplazar_entrada_tlb(tlb_entrada);
-    } else {
-        list_add(tlb, tlb_entrada);
+    tlb_entrada->instante_referencia = 1;
+    if (!list_is_empty(tlb)) {
+        if (list_size(tlb) == entradas_max_tlb) {
+            reemplazar_entrada_tlb(tlb_entrada);
+        }
+        else {
+            list_add(tlb, tlb_entrada);
+        }
     }
-    imprimir_entradas_tlb();
+    else {
+        list_add(tlb, tlb_entrada);
+        }
+        imprimir_entradas_tlb();
 }
+
 
 void imprimir_entradas_tlb() {
     for (int i=0; i < tlb->elements_count; i++) {
