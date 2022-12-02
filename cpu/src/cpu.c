@@ -8,12 +8,12 @@ int main(int argc, char* argv[]){
     validar_argumentos_main(argc);
 
 	char* CONFIG_FILE = argv[1];
+    ultima_entrada_fifo = 0;
 
     logger = iniciar_logger(LOG_FILE,LOG_NAME);
     cpu_config = iniciar_config(CONFIG_FILE);
     communication_config = init_connection_config();
-    tlb_general = list_create();
-    tlb_proceso_actual = list_create();
+    tlb= list_create();
 	lista_dispositivos = config_get_array_value(cpu_config,"DISPOSITIVOS_IO");
 
 	char* IP_MEMORIA = config_get_string_value(communication_config,"IP_MEMORIA");
@@ -70,10 +70,9 @@ void* conexion_dispatch(void* socket){
 		if(codigo_operacion == PCB){
 			pcb = recibir_PCB(socket_dispatch);
 			//log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
-            tlb_proceso_actual = obtener_tlb_proceso_actual();
 			sem_post(&continuar_ciclo_instruccion);
 			sem_wait(&desalojar_pcb);
-            actualizar_tlb_general();
+            limpiar_tlb();
 			enviar_PCB(socket_dispatch, pcb,estado_proceso);
 			//log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
 			pcb = NULL;
@@ -275,14 +274,14 @@ punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
 
     if (desplazamiento_segmento > segmento->tamanio_segmento) {
-        log_info(logger, string_from_format(RED"PID:<%d> - SEGMENTATION FAULT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        log_info(logger, string_from_format(RED"PID: <%d> - SEGMENTATION FAULT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         estado_proceso = SEGMENTATION_FAULT;
         return NULL;
     }
 
     marco = tlb_obtener_marco(pcb->pid, numero_segmento, numero_pagina);
     if (marco == -1 ) {
-        log_info(logger, "%s", string_from_format(RED"PID:<%d> - TLB MISS - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        log_info(logger, "%s", string_from_format(RED"PID: <%d> - TLB MISS - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         uint32_t indice_tabla_paginas = ((t_segmento*) (list_get(pcb->tabla_segmentos, numero_segmento)))->indice_tabla_paginas;
         marco = obtener_marco_memoria(indice_tabla_paginas, numero_pagina);
         if (marco == -1) {
@@ -291,7 +290,7 @@ punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
         }
         tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
     } else {
-        log_info(logger, "%s", string_from_format(GRN"PID:<%d> - TLB HIT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
+        log_info(logger, "%s", string_from_format(GRN"PID: <%d> - TLB HIT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
      }
 
     punteros_cpu *punteros_cpu = malloc(sizeof (punteros_cpu));
@@ -323,9 +322,9 @@ int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pa
     tlb_entrada * entrada_tlb = malloc(sizeof(tlb_entrada));
     uint32_t instante_referencia = 0; 
 
-    if (list_size(tlb_proceso_actual) > 0) {
-        for (int i=0; i < list_size(tlb_proceso_actual); i++) {
-            entrada_tlb = (tlb_entrada *) list_get(tlb_proceso_actual,i);
+    if (list_size(tlb) > 0) {
+        for (int i=0; i < list_size(tlb); i++) {
+            entrada_tlb = (tlb_entrada *) list_get(tlb,i);
             if (entrada_tlb->pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
                 entrada_tlb->instante_referencia = instante_referencia + 1;
                 return entrada_tlb->marco;
@@ -338,33 +337,29 @@ int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pa
 
 void reemplazar_entrada_tlb(tlb_entrada* entrada) {
     if (strcmp(algoritmo_reemplazo_tlb, "FIFO") ==0){
-        list_remove(tlb_proceso_actual, 0);
-        list_add(tlb_proceso_actual, entrada);
+        list_remove(tlb, ultima_entrada_fifo);
+        list_add_in_index(tlb, ultima_entrada_fifo, entrada);
+        ultima_entrada_fifo = (ultima_entrada_fifo == entradas_max_tlb-1) ? 0 : ultima_entrada_fifo+1;
     }
     else {
-        /*
-        list_sort(tlb, comparator);
-        list_remove(tlb, 0);
-        list_add(tlb, entrada);
-        */
         uint32_t instante_referencia_nueva_entrada = 0;
         uint32_t indice_victima = obtener_indice_entrada_menor_instante_referencia(&instante_referencia_nueva_entrada);
         //Actualizo con el instante de referencia correspondiente para la entrada nueva
         entrada->instante_referencia = instante_referencia_nueva_entrada + 1;
-        list_remove(tlb_proceso_actual,indice_victima);
-        list_add_in_index(tlb_proceso_actual,indice_victima,entrada);
+        list_remove(tlb,indice_victima);
+        list_add_in_index(tlb,indice_victima,entrada);
     }
 }
 
 uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada){
 
     uint32_t indice = 0;
-    tlb_entrada* entrada_i = list_get(tlb_proceso_actual, 0);
+    tlb_entrada* entrada_i = list_get(tlb, 0);
 
     uint32_t instante_referencia_minimo = entrada_i->instante_referencia;
 
-    for(uint32_t i=0; i < list_size(tlb_proceso_actual); i++){
-        entrada_i = list_get(tlb_proceso_actual, i);
+    for(uint32_t i=0; i < list_size(tlb); i++){
+        entrada_i = list_get(tlb, i);
         
         //Obtengo el instante de referencia mas chico para reemplazar esa entrada
         if(instante_referencia_minimo > entrada_i->instante_referencia){
@@ -388,18 +383,18 @@ void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagi
     tlb_entrada->pagina = numero_pagina;
     tlb_entrada->marco = marco;
     tlb_entrada->instante_referencia=1;
-    if (list_size(tlb_proceso_actual) >= entradas_max_tlb){
+    if (list_size(tlb) >= entradas_max_tlb){
         reemplazar_entrada_tlb(tlb_entrada);
     } else {
-        list_add(tlb_proceso_actual, tlb_entrada);
+        list_add(tlb, tlb_entrada);
     }
     imprimir_entradas_tlb();
 }
 
 void imprimir_entradas_tlb() {
-    for (int i=0; i < tlb_proceso_actual->elements_count; i++) {
-        tlb_entrada* entrada = list_get(tlb_proceso_actual, i);
-       log_info(logger,string_from_format(YEL"<ENTRADA_TLB:%d>|PID:<%d>|SEGMENTO:<%d>|PAGINA:<%d>|MARCO:<%d>"RESET,
+    for (int i=0; i < tlb->elements_count; i++) {
+        tlb_entrada* entrada = list_get(tlb, i);
+        log_info(logger,string_from_format(YEL"<ENTRADA_TLB:%d>|PID:<%d>|SEGMENTO:<%d>|PAGINA:<%d>|MARCO:<%d>"RESET,
                                           i,
                                           entrada->pid,
                                           entrada->segmento,
@@ -412,17 +407,13 @@ static bool comparator (void* entrada1, void* entrada2) {
     return (((tlb_entrada *) entrada1)->instante_referencia) < (((tlb_entrada *) entrada2)->instante_referencia);
 }
 
-void limpiar_tlb(){
-    list_clean(tlb_proceso_actual);
-}
-
 /*
  * Si el marco que me viene de memoria ya es una entrada en la tlb con otra pagina, le actualizo la página
  * */
 void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
     tlb_entrada * entrada;
-    for(int i=0; i< list_size(tlb_proceso_actual);i++) {
-        entrada = list_get(tlb_proceso_actual, i);
+    for(int i=0; i< list_size(tlb);i++) {
+        entrada = list_get(tlb, i);
         if (entrada->marco == marco && numero_pagina!= entrada->pagina) {
             entrada->pagina = numero_pagina;
             entrada->instante_referencia=1;
@@ -511,38 +502,15 @@ void escribir_en_memoria(punteros_cpu * punteros_cpu, uint32_t valor) {
     }
 }
 
-t_list* obtener_tlb_proceso_actual(){
-    return list_filter(tlb_general, comparator_pid_tlb);
-}
-
-static bool comparator_pid_tlb (void* entrada1) {
-    return (((tlb_entrada *) entrada1)->pid) == pcb->pid;
-}
-
-void actualizar_tlb_general(){
-   
-    for(uint32_t i=0; i<list_size(tlb_general); i++){
-        tlb_entrada* entrada_i = list_get(tlb_general,i);
-        if(entrada_i->pid == pcb->pid && !list_is_empty(tlb_proceso_actual)){
-            tlb_entrada* entrada_tlb_proceso_actual = list_remove(tlb_proceso_actual,0);
-            list_replace(tlb_general,i,entrada_tlb_proceso_actual);
-        }
-    }
-
-    while(!list_is_empty(tlb_proceso_actual)){
-        tlb_entrada* entrada_tlb_proceso = list_remove(tlb_proceso_actual,0);
-        list_add(tlb_general,entrada_tlb_proceso);
-    }
-
+void limpiar_tlb(){
     if(estado_proceso == FINALIZAR_PROCESO){
-        for(uint32_t i=0; i<list_size(tlb_general); i++){
-            tlb_entrada* entrada = list_get(tlb_general,i); 
+        for(uint32_t i=0; i<list_size(tlb); i++){
+            tlb_entrada* entrada = list_get(tlb,i); 
             if( entrada->pid == pcb->pid){
-                list_remove(tlb_general,i);
+                list_remove(tlb,i);
                 i--;
                 free(entrada);
             }
         }
     }
-
 }
