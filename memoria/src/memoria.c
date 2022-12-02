@@ -4,6 +4,7 @@
 
 
 
+
 int main(int argc, char* argv[]){
 
     validar_argumentos_main(argc);
@@ -22,7 +23,8 @@ int main(int argc, char* argv[]){
     crear_archivo_swap();
     //mostrar_contenido_archivo_swap();
     crear_espacio_usuario();
-
+    frames_ocupados = dictionary_create();
+    paginas_frames = queue_create();
     socket_kernel =  crear_conexion(ip_kernel, puerto_kernel);
     enviar_handshake_inicial(socket_kernel, MEMORIA, logger );
 
@@ -30,8 +32,7 @@ int main(int argc, char* argv[]){
     pthread_detach(thread_escucha_kernel);
     
     pthread_create(&buscador_marcos, NULL, buscar_marcos_para_procesos, NULL);
-
-    //pthread_create(&buscador_marcos, NULL, buscar);
+    pthread_detach(buscador_marcos);
 
     socket_srv_memoria = levantar_servidor();
     log_info(logger, "Esperando CPU");
@@ -109,10 +110,11 @@ void crear_espacio_usuario() {
       */
 }
 
-uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid ) {
+uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, uint32_t pid, uint32_t contador_paginas ) {
     int cantidad_registros_tabla_segmentos = MAX(tamanio_segmento/tamanio_pagina, 1);
     for(int i=0; i < cantidad_registros_tabla_segmentos ; i++) {
         t_registro_tabla_paginas* registro_tabla_paginas = malloc(sizeof(t_registro_tabla_paginas));
+        registro_tabla_paginas->numero_pagina = contador_paginas;
         registro_tabla_paginas->pid = pid;
         registro_tabla_paginas->frame = 0;
         registro_tabla_paginas->modificado = 0;
@@ -121,13 +123,16 @@ uint32_t crear_estructuras_administrativas_proceso(uint32_t tamanio_segmento, ui
         registro_tabla_paginas->posicion_swap = puntero_swap;
         actualizar_puntero_swap();
         list_add(registros_tabla_paginas, registro_tabla_paginas);
-    /*    printf("\n[indice:%d][registro:%d]registro_tabla_paginas->pid: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->pid);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->frame: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->frame);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->modificado: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->modificado);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->presencia: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->presencia);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->uso: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->uso);
-        printf("\n[indice:%d][registro:%d]registro_tabla_paginas->posicion_swap: %d\n", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->posicion_swap);
-   */
+        contador_paginas++;
+        log_info(logger, string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->pid: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->pid));
+        log_info(logger, string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->numero_pagina: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->numero_pagina));
+
+        /* log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->frame: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->frame));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->modificado: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->modificado));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->presencia: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->presencia));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->uso: %d", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->uso));
+         log_info(logger,string_from_format("[indice:%d][registro:%d]registro_tabla_paginas->posicion_swap: %d\n", list_size(tabla_paginas), list_size(registros_tabla_paginas), registro_tabla_paginas->posicion_swap));
+ */
     }
     pthread_mutex_lock(&mutex_tabla_paginas);
     list_add(tabla_paginas, list_duplicate(registros_tabla_paginas));
@@ -143,7 +148,6 @@ void crear_archivo_swap() {
     // lleno las páginas del proceso con enteros partiendo desde id_proceso
     for(int i=0; i< cantidad_bloques ; i++) {
         memcpy(str + (sizeof(uint32_t) *i) , &valor, sizeof(uint32_t));
-        valor+=1;
     }
 
 /*
@@ -166,30 +170,13 @@ void crear_archivo_swap() {
     free(str);
 }
 
-void mostrar_contenido_archivo_swap() {
-    int archivo_swap = open(path_swap, O_RDWR);
-    struct stat sb;
-    if (fstat(archivo_swap,&sb) == -1) {
-        perror("No se pudo obtener el size del archivo swap: ");
-    }
-
-    if (archivo_swap != NULL) {
-        void* lectura = malloc(sb.st_size);
-        read(archivo_swap, lectura, sb.st_size );
-        printf(YEL"\n\nEL CONTENIDO DEL ARCHIVO POST SWAPEO\n\n"RESET);
-          for(int i=0; i< sb.st_size / sizeof (uint32_t); i++) {
-              uint32_t* apuntado=  lectura+ sizeof(uint32_t) *i;
-              printf("\nvalor apuntado en posición del arhivo actualizado%d-->%d\n",i, *apuntado);
-          }
-    }
-}
-
 void escuchar_cliente(int socket_server, t_log* logger) {
     socket_cpu = esperar_cliente(socket_server, logger);
+    void* retorno;
     if (socket_cpu != -1) {
         pthread_t hilo;
         pthread_create(&hilo, NULL, (void*) procesar_conexion, NULL);
-        pthread_detach(hilo);
+        pthread_join(hilo,&retorno);
     }
 
 }
@@ -209,7 +196,7 @@ void procesar_conexion(void* args) {
                 ;
                 uint32_t desplazamiento = 0; // es el deplazamiento para moverme en el buffer que recibo
                 uint32_t id_proceso_escribir_memoria;
-                uint32_t numero_pagina_escribir_memoria;
+                uint32_t numero_pagina_escribir_memoria; //este numero es relativo al segmento
                 uint32_t marco_escribir_memoria;
 
                 uint32_t desplazamiento_escribir_memoria;
@@ -232,20 +219,33 @@ void procesar_conexion(void* args) {
                 memcpy((espacio_usuario_memoria +(marco_escribir_memoria*tamanio_pagina+desplazamiento_escribir_memoria)), &valor_escribir_memoria, sizeof(uint32_t));
 
                 enviar_mensaje(string_from_format("Escribi el valor: %d en el marco: %d desplazamiento :%d", valor_escribir_memoria, marco_escribir_memoria, desplazamiento_escribir_memoria), socket_cpu);
-                t_registro_tabla_paginas* registro_tabla_paginas_escribir_memoria = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas_escribir_memoria), numero_pagina_escribir_memoria));
-                registro_tabla_paginas_escribir_memoria->modificado = 1;
+
+                t_registro_tabla_paginas * registro_escrito_memoria = obtener_registro_tabla_paginas(indice_tabla_paginas_escribir_memoria, numero_pagina_escribir_memoria);
+                actualizar_bit_modificado(registro_escrito_memoria);
 
                 break;
             case LEER_MEMORIA:
                 ;
+                uint32_t id_proceso_leer_memoria;
+                uint32_t indica_pagina_leer_memoria;
+                uint32_t numero_pagina_leer_memoria; //este numero es relativo al segmento
                 uint32_t marco_leer_memoria;
                 uint32_t desplazamiento_leer_memoria;
+                int despl=0;
                 void* buffer_leer_memoria = recibir_buffer(socket_cpu);
-                memcpy(&marco_leer_memoria, buffer_leer_memoria, sizeof (uint32_t));
-                memcpy(&desplazamiento_leer_memoria, buffer_leer_memoria + sizeof (uint32_t), sizeof(uint32_t));
+                memcpy(&id_proceso_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&indica_pagina_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&numero_pagina_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&marco_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
+                despl+=sizeof(uint32_t);
+                memcpy(&desplazamiento_leer_memoria, buffer_leer_memoria+despl, sizeof (uint32_t));
                 uint32_t* valor_leido = (uint32_t *) (espacio_usuario_memoria +(marco_leer_memoria*tamanio_pagina+desplazamiento_leer_memoria));
                 enviar_entero(socket_cpu, *valor_leido, LEER_MEMORIA);
-                //falta actualizar el bit de uso en 1 en la tabla de paginas. Hay que recibir el indice de la tabla para saber cual es.
+                t_registro_tabla_paginas * registro_leido_memoria = obtener_registro_tabla_paginas(indice_tabla_paginas_escribir_memoria, numero_pagina_escribir_memoria);
+                actualizar_bit_uso(registro_leido_memoria);
                 break;
             case OBTENER_MARCO:
                 ;
@@ -254,32 +254,23 @@ void procesar_conexion(void* args) {
                 uint32_t id_proceso_marco;
                 uint32_t nro_tabla_obtener_marco;
                 uint32_t numero_pag_obtener_marco;
-                int despl = 0;
+                int desp = 0;
                 int marco = -1;
-                memcpy(&id_proceso_marco, buffer_marco+despl, sizeof(uint32_t));
-                despl+= sizeof(uint32_t);
+                memcpy(&id_proceso_marco, buffer_marco+desp, sizeof(uint32_t));
+                desp+= sizeof(uint32_t);
 
-                printf("PID: %d\t",id_proceso_marco);
+                memcpy(&nro_tabla_obtener_marco, buffer_marco+desp, sizeof(uint32_t));
+                desp+= sizeof(uint32_t);
 
-                memcpy(&nro_tabla_obtener_marco, buffer_marco+despl, sizeof(uint32_t));
-                despl+= sizeof(uint32_t);
-
-                printf("Tabla: %d\t",nro_tabla_obtener_marco);
-
-                memcpy(&numero_pag_obtener_marco, buffer_marco + despl, sizeof(uint32_t));
-                t_registro_tabla_paginas* registro_tabla_paginas = (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, nro_tabla_obtener_marco), numero_pag_obtener_marco));
-
-                printf("Pag: %d\n",numero_pag_obtener_marco);
+                memcpy(&numero_pag_obtener_marco, buffer_marco + desp, sizeof(uint32_t));
+                t_registro_tabla_paginas* registro_tabla_paginas = obtener_registro_tabla_paginas(nro_tabla_obtener_marco, numero_pag_obtener_marco);
 
                 if(registro_tabla_paginas->presencia) {
                     log_info(logger,"Presencia");
                     marco = registro_tabla_paginas->frame;
                     enviar_marco(socket_cpu, marco);
                 } else {
-                    //cod_op = PAGE_FAULT;
                     log_info(logger,"MEMORIA --> Enviando page_fault");
-                    //enviar_page_fault_cpu(cliente_fd, cod_op, marco);
-                    //enviar_page_fault_cpu(socket_cpu,marco);
                     actualizar_lista_frames_pendientes(registro_tabla_paginas);
                     sem_post(&buscar_frame);
                     enviar_codigo_op(socket_cpu,PAGE_FAULT);
@@ -299,6 +290,19 @@ void procesar_conexion(void* args) {
     }
 }
 
+t_registro_tabla_paginas *obtener_registro_tabla_paginas(uint32_t indice_tabla_paginas,
+                                                         uint32_t numero_pagina) {
+    return (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas), numero_pagina)); }
+
+void actualizar_bit_modificado(t_registro_tabla_paginas* registro_tabla_paginas) {
+    registro_tabla_paginas->modificado = 1;
+    actualizar_bit_uso(registro_tabla_paginas);
+}
+
+void actualizar_bit_uso(t_registro_tabla_paginas* registro_tabla_paginas) {
+    registro_tabla_paginas->uso = 1;
+}
+
 void enviar_marco(int cliente_fd, int marco) {
     enviar_entero8bytes(cliente_fd, marco, OBTENER_MARCO);
 }
@@ -306,15 +310,28 @@ void enviar_marco(int cliente_fd, int marco) {
 void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas) {
     int frame_libre = obtener_numero_frame_libre();
     uint32_t cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados_proceso(registro_tabla_paginas->pid);
-    if (marcos_por_proceso > cantidad_marcos_ocupados_proceso || frame_libre >= 0 ) {
+    if (marcos_por_proceso > cantidad_marcos_ocupados_proceso) {
         void* pagina_swap = obtener_bloque_proceso_desde_swap(registro_tabla_paginas->posicion_swap);
         memcpy(espacio_usuario_memoria + (frame_libre * tamanio_pagina), pagina_swap, tamanio_pagina);
         registro_tabla_paginas->frame = (uint32_t) frame_libre;
         registro_tabla_paginas->presencia = 1;
         registro_tabla_paginas->uso = 1;
+        agregar_a_cola_frames_por_paginas(registro_tabla_paginas);
+    }
+    else {
+        if (string_equals_ignore_case(algoritmo_reemplazo, "CLOCK")) {
+            //ejecuta clock
+            log_info(logger, "tiene que ejecutar clock");
+            ejecutar_clock(registro_tabla_paginas);
+        }
+        else {
+           // ejecuta clock modificado
+            log_info(logger, "tiene que ejecutar clock modificado");
+            ejecutar_clock_modificado(registro_tabla_paginas);
+        }
+        //ejecutar algoritmo de reemplazo
     }
     enviar_codigo_op(socket_kernel, PAGE_FAULT_ATENDIDO);
-    log_info(logger, string_from_format("Envié PAGE_FAULT_ATENDIDO a kernel para frame: %d", frame_libre));
 }
 
 
@@ -323,17 +340,29 @@ void *conexion_kernel(void* socket){
     log_info(logger, "socket_kernel: %d", socket_kernel);
     while(socket_kernel != -1) {
         op_code codigo_operacion = recibir_operacion(socket_kernel);
+        t_pcb* pcb = recibir_PCB(socket_kernel);
         switch(codigo_operacion) {
             case CREAR_ESTRUCTURAS_ADMIN:
                 ;
-                log_info(logger, "creando estructuras administrativas");
-                t_pcb* pcb = recibir_PCB(socket_kernel);
+                log_info(logger, "Creando estructuras administrativas");
+                uint32_t contador_paginas =0;
+                pthread_mutex_lock(&liberar_estructuras);
                 for(int i=0; i < list_size(pcb->tabla_segmentos); i++){
                     t_segmento * segmento;
                     segmento = list_get(pcb->tabla_segmentos, i);
-                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid)-1);
+                    segmento->indice_tabla_paginas = (crear_estructuras_administrativas_proceso(segmento->tamanio_segmento, pcb->pid, contador_paginas)-1);
+                    contador_paginas = contador_paginas + (segmento->tamanio_segmento / tamanio_pagina);
                 }
+                pthread_mutex_unlock(&liberar_estructuras);
                 enviar_PCB(socket_kernel, pcb, ACTUALIZAR_INDICE_TABLA_PAGINAS);
+                break;
+
+            case FINALIZAR_PROCESO:
+                ;
+                log_info(logger, "Liberando memoria del proceso");
+                pthread_mutex_lock(&liberar_estructuras);
+                //Liberar estructuras
+                pthread_mutex_unlock(&liberar_estructuras);
                 break;
             default:
                 break;
@@ -422,4 +451,126 @@ t_registro_tabla_paginas *obtener_tupla_elementos_lista_frames_pendientes(){
     registro = (t_registro_tabla_paginas *) queue_pop(cola_pid_registro_tabla_paginas);
     pthread_mutex_unlock(&mutex_listas_frames_pendientes);
     return registro;
+}
+
+void agregar_a_cola_frames_por_paginas(t_registro_tabla_paginas* registro_tabla_paginas) {
+
+    t_queue* cola_frames_paginas = dictionary_get(frames_ocupados, string_itoa(registro_tabla_paginas->pid));
+    if (cola_frames_paginas != NULL) {
+        queue_push(cola_frames_paginas, registro_tabla_paginas);
+    }
+    else {
+        t_queue * cola = queue_create();
+        queue_push(cola, registro_tabla_paginas);
+        dictionary_put(frames_ocupados, string_itoa(registro_tabla_paginas->pid), cola);
+    }
+}
+
+void ejecutar_clock(t_registro_tabla_paginas* registro_tabla_paginas_nuevo){
+    t_queue* paginas_frames_proceso =  dictionary_get(frames_ocupados, string_itoa((int) registro_tabla_paginas_nuevo->pid));
+    uint hay_pagina_victima = 0;
+
+    while(hay_pagina_victima == 0) {
+        t_registro_tabla_paginas* registro = queue_pop(paginas_frames_proceso);
+        if (registro->uso == 0) {
+            if (registro->modificado == 1) {
+                actualizar_pagina_en_swap(registro);
+            }
+            registro->presencia = 0;
+            registro_tabla_paginas_nuevo->presencia = 1;
+            registro_tabla_paginas_nuevo->uso = 1;
+            registro_tabla_paginas_nuevo->frame = registro->frame;
+            queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+            hay_pagina_victima = 1;
+        } else {
+            registro->uso = 0;
+            queue_push(paginas_frames_proceso, registro);
+        }
+    }
+
+}
+
+void ejecutar_clock_modificado(t_registro_tabla_paginas* registro_tabla_paginas_nuevo ){
+
+    t_queue* paginas_frames_proceso =  dictionary_get(frames_ocupados, string_itoa((int) registro_tabla_paginas_nuevo->pid));
+    uint hay_pagina_victima = 0;
+    uint32_t vuelta_algoritmo = 0;
+    t_registro_tabla_paginas* registro;
+    while(hay_pagina_victima == 0) {
+         registro = queue_pop(paginas_frames_proceso);
+        // busco (0,0)
+        if (registro->uso == 0 && registro->modificado == 0) {
+            registro->presencia = 0;
+            registro_tabla_paginas_nuevo->presencia = 1;
+            registro_tabla_paginas_nuevo->uso = 1;
+            registro_tabla_paginas_nuevo->frame = registro->frame;
+            queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+            hay_pagina_victima = 1;
+        } else {
+            queue_push(paginas_frames_proceso, registro);
+            vuelta_algoritmo+=1;
+            if (vuelta_algoritmo >= marcos_por_proceso) {
+                //busco (0,1)
+                registro = queue_pop(paginas_frames_proceso);
+                if (registro->uso == 0 && registro->modificado == 1) {
+                    actualizar_pagina_en_swap(registro);
+                    registro->presencia = 0;
+                    registro_tabla_paginas_nuevo->presencia = 1;
+                    registro_tabla_paginas_nuevo->uso = 1;
+                    registro_tabla_paginas_nuevo->frame = registro->frame;
+                    //actualizar swap si el bit de moficiado del registro victima estaba en 1
+                    queue_push(paginas_frames_proceso, registro_tabla_paginas_nuevo);
+                    hay_pagina_victima = 1;
+                }
+                else {
+                    registro->uso = 0;
+                    queue_push(paginas_frames_proceso, registro);
+                }
+            }
+        }
+
+    }
+}
+
+void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
+    mostrar_contenido_swap(registro->posicion_swap);
+    void* pagina = malloc(tamanio_pagina);
+    memcpy(pagina, espacio_usuario_memoria+(registro->frame*tamanio_pagina), tamanio_pagina);
+    FILE *archivo_swap = fopen(path_swap, "wb");
+    fseek(archivo_swap, registro->posicion_swap, SEEK_SET);
+    if (archivo_swap != NULL) {
+        fwrite(pagina, tamanio_pagina, 1, archivo_swap);
+    }
+    else {
+        perror("Error abriendo el archivo swap: ");
+    }
+    fclose(archivo_swap);
+    mostrar_contenido_swap(registro->posicion_swap);
+    free(pagina);
+}
+/*******
+ * FUNCIONES AUXILIARES
+ */
+
+void mostrar_contenido_swap(uint32_t puntero_desde) {
+
+    void* pagina = malloc(tamanio_pagina);
+    FILE *archivo_swap = fopen(path_swap, "rb");
+    fseek(archivo_swap, puntero_desde, SEEK_SET);
+    if (archivo_swap != NULL) {
+        fread(pagina, tamanio_pagina, 1, archivo_swap);
+    }
+    else {
+        perror("Error abriendo el archivo swap: ");
+    }
+
+
+    for(int i=0; i< tamanio_pagina; i++) {
+        uint32_t* apuntado=  pagina + sizeof(uint32_t) *i;
+        printf("\nvalor[%d]-->%d",i, *apuntado);
+    }
+
+
+    fclose(archivo_swap);
+    free(pagina);
 }

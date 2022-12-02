@@ -75,7 +75,7 @@ void esperar_modulos(int socket_srv){
     for(int i=0; i < cantidad_modulos; i++){
         int socket_cliente = esperar_cliente(socket_srv,logger);
         uint32_t modulo = recibir_handshake_inicial(socket_cliente,KERNEL, logger);
-        log_info(logger, "entro un cliente en kernel: %d, modulo:%d", socket_cliente, modulo);
+        log_info(logger, "Se conecto un cliente en kernel: %d, modulo:%d", socket_cliente, modulo);
 
         switch(modulo){
             case CPU_DISPATCH:
@@ -114,9 +114,11 @@ void* conexion_dispatch(void* socket){
         pcb = quitar_pcb_de_cola(mutex_running,running_queue);
         
         enviar_PCB(socket_dispatch,pcb,PCB);
+        /*
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Enviado: PID <%d>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
+        */
         hay_proceso_ejecutando=1;
 
         if(algoritmo_planificacion_tiene_desalojo() && ready_anterior_pcb_running==READY1) sem_post(&continuar_conteo_quantum);
@@ -128,10 +130,11 @@ void* conexion_dispatch(void* socket){
         op_code codigo_operacion = recibir_operacion(socket_dispatch);
         pcb = recibir_PCB(socket_dispatch);
         hay_proceso_ejecutando=0;
+        /*
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format(BLU"Conexion Dispatch: PCB Recibido: PID <%d>"WHT,pcb->pid));
         pthread_mutex_unlock(&mutex_logger);
-
+        */
         switch(codigo_operacion){
 
             case INTERRUPCION:
@@ -168,12 +171,25 @@ void* conexion_dispatch(void* socket){
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 agregar_pcb_a_cola(pcb,mutex_blocked_page_fault,blocked_page_fault_queue);
                 logear_cambio_estado(pcb,RUNNING,BLOQUEADO_PAGE_FAULT);
+                pthread_mutex_lock(&mutex_logger);
+                log_info(logger,string_from_format(CYN"PID: <%d> - Bloqueado por: <PAGE_FAULT>"WHT,pcb->pid));
+                pthread_mutex_unlock(&mutex_logger);
                 sem_post(&atender_pf);
                 break;
 
             case FINALIZAR_PROCESO:
                 if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
                 agregar_pcb_a_cola(pcb,mutex_exit, exit_queue);
+                logear_cambio_estado(pcb,RUNNING,EXIT_S);
+                sem_post(&finish_process);
+                break;
+
+            case SEGMENTATION_FAULT:
+                if(algoritmo_planificacion_tiene_desalojo()) pthread_cancel(thread_clock);
+                agregar_pcb_a_cola(pcb,mutex_exit, exit_queue);
+                pthread_mutex_lock(&mutex_logger);
+                log_info(logger,string_from_format(RED" <%d> SEGMENTATION FAULT",pcb->pid));
+                pthread_mutex_unlock(&mutex_logger);
                 logear_cambio_estado(pcb,RUNNING,EXIT_S);
                 sem_post(&finish_process);
                 break;
@@ -193,9 +209,11 @@ void* conexion_dispatch(void* socket){
 void* conexion_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
     if(algoritmo_planificacion_tiene_desalojo()){
+        /*
         pthread_mutex_lock(&mutex_logger);
         log_info(logger,string_from_format("Quantum: %ds",quantum/1000));
         pthread_mutex_unlock(&mutex_logger);
+        */
         printf("\n");
         quantum = quantum * 1000;
         while(socket_interrupt != -1){
@@ -210,9 +228,11 @@ void* conexion_interrupt(void* socket){
 void* clock_interrupt(void* socket){
     int socket_interrupt = (intptr_t) socket;
     printf("\n");
+    /*
     pthread_mutex_lock(&mutex_logger);
     log_info(logger,"Clock iniciado...");
     pthread_mutex_unlock(&mutex_logger);
+    */
     usleep(quantum);
     if(hay_proceso_ejecutando) {
         pthread_mutex_lock(&mutex_logger);
@@ -225,7 +245,7 @@ void* clock_interrupt(void* socket){
 
 void *conexion_memoria(void* socket){
     socket_memoria = (intptr_t) socket;
-    log_info(logger, "socket_memoria: %d", socket_memoria);
+    //log_info(logger, "socket_memoria: %d", socket_memoria);
     while(socket_memoria != -1) {
         op_code codigo_operacion = recibir_operacion(socket_memoria);
         switch(codigo_operacion) {
@@ -277,9 +297,11 @@ void *conexion_consola(void* socket){
 			case INPUT_VALOR:
                 ;
 				uint32_t input_consola = recibir_valor(socket_consola);
-				pthread_mutex_lock(&mutex_logger);
+				/*
+                pthread_mutex_lock(&mutex_logger);
 				log_info(logger,string_from_format(BLU"Conexion Consola: Valor recibido de consola: %d"BLU,input_consola));
 				pthread_mutex_unlock(&mutex_logger);
+                */
                 desbloquear_pcb_keyboard(socket_consola,input_consola);
 				break;
 
@@ -448,9 +470,9 @@ void* finalizador_procesos(void* x){
 
         log_info(logger,BLU"Conexion Consola: Finalizar consola"WHT);
         enviar_codigo_op(pcb->socket_consola,FINALIZAR_PROCESO);
-        sem_post(&grado_multiprogramacion);
+        enviar_PCB(socket_memoria,pcb,FINALIZAR_PROCESO);
         free(pcb);
-        //Avisar a memoria
+        sem_post(&grado_multiprogramacion);
     }
     return EXIT_SUCCESS;
 }
