@@ -308,9 +308,9 @@ void enviar_marco(int cliente_fd, int marco) {
 }
 
 void buscar_frame_libre_proceso(t_registro_tabla_paginas *registro_tabla_paginas) {
-    int frame_libre = obtener_numero_frame_libre();
     uint32_t cantidad_marcos_ocupados_proceso = obtener_cantidad_marcos_ocupados_proceso(registro_tabla_paginas->pid);
     if (marcos_por_proceso > cantidad_marcos_ocupados_proceso) {
+        int frame_libre = obtener_numero_frame_libre();
         void* pagina_swap = obtener_bloque_proceso_desde_swap(registro_tabla_paginas->posicion_swap);
         memcpy(espacio_usuario_memoria + (frame_libre * tamanio_pagina), pagina_swap, tamanio_pagina);
         registro_tabla_paginas->frame = (uint32_t) frame_libre;
@@ -577,7 +577,7 @@ void mostrar_contenido_swap(uint32_t puntero_desde) {
 }
 
 void liberar_tablas_paginas_proceso(uint32_t pid) {
-//mostar_bitmap_frames();
+    mostar_bitmap_frames();
     for (int i=0; i<list_size(tabla_paginas); i++) {
         t_list* registros_tabla_paginas = list_get(tabla_paginas, i);
         for (int j=0; j< list_size(registros_tabla_paginas); j++) {
@@ -589,7 +589,7 @@ void liberar_tablas_paginas_proceso(uint32_t pid) {
         }
     }
 
-    //mostar_bitmap_frames();
+    mostar_bitmap_frames();
 }
 
 void mostar_bitmap_frames() {
