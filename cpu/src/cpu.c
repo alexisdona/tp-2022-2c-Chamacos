@@ -32,7 +32,7 @@ int main(int argc, char* argv[]){
     enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
 	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t) socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
-
+    instante_referencia_nueva_entrada = 0;
     socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
     handshake_memoria(socket_memoria);
 
@@ -344,8 +344,7 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
         ultima_entrada_fifo = (ultima_entrada_fifo == entradas_max_tlb-1) ? 0 : ultima_entrada_fifo+1;
     }
     else {
-        uint32_t instante_referencia_nueva_entrada = 0;
-        uint32_t indice_victima = obtener_indice_entrada_menor_instante_referencia(&instante_referencia_nueva_entrada);
+        uint32_t indice_victima = obtener_indice_entrada_menor_instante_referencia();
         //Actualizo con el instante de referencia correspondiente para la entrada nueva
         entrada->instante_referencia = instante_referencia_nueva_entrada + 1;
         list_remove(tlb,indice_victima);
@@ -353,7 +352,7 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
     }
 }
 
-uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada){
+uint32_t obtener_indice_entrada_menor_instante_referencia(){
 
     uint32_t indice = 0;
     uint32_t instante_referencia_minimo;
@@ -365,8 +364,6 @@ uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_ref
        instante_referencia_minimo = 0;
    }
 
-
-
     for(uint32_t i=0; i < list_size(tlb); i++){
         entrada_i = list_get(tlb, i);
         
@@ -377,8 +374,8 @@ uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_ref
         }
 
         //Obtengo el instante de referencia mas alto para la nueva entrada
-        if(*instante_referencia_nueva_entrada < entrada_i->instante_referencia){
-            *instante_referencia_nueva_entrada = entrada_i->instante_referencia;
+        if(instante_referencia_nueva_entrada < entrada_i->instante_referencia){
+            instante_referencia_nueva_entrada = entrada_i->instante_referencia;
         }
     }
     return indice;

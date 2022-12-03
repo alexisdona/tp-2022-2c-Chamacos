@@ -34,7 +34,7 @@ typedef struct
 
 int socket_kernel_dispatch, socket_kernel_interrupt, socket_memoria;
 
-uint32_t tamanio_pagina, entradas_por_tabla, entradas_max_tlb;
+uint32_t tamanio_pagina, entradas_por_tabla, entradas_max_tlb, instante_referencia_nueva_entrada;
 uint32_t ultima_entrada_fifo;
 t_list* tlb;
 
@@ -88,7 +88,7 @@ static bool comparator (void*, void*);
 uint32_t leer_en_memoria(t_punteros_cpu * punteros_cpu);
 int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina);
 void escribir_en_memoria(t_punteros_cpu * direccion_fisica, uint32_t valor);
-uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada);
+uint32_t obtener_indice_entrada_menor_instante_referencia();
 
 static bool comparator_pid_tlb (void* entrada1);
 void limpiar_tlb();
