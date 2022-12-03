@@ -295,7 +295,9 @@ void procesar_conexion(void* args) {
 
 t_registro_tabla_paginas *obtener_registro_tabla_paginas(uint32_t indice_tabla_paginas,
                                                          uint32_t numero_pagina) {
-    return (t_registro_tabla_paginas *) (list_get(list_get(tabla_paginas, indice_tabla_paginas), numero_pagina));
+    t_list* registros_indice_tabla_paginas = list_get(tabla_paginas, indice_tabla_paginas);
+    t_registro_tabla_paginas * registro_tabla_paginas = (t_registro_tabla_paginas *) (list_get(registros_indice_tabla_paginas, numero_pagina));
+    return registro_tabla_paginas;
 }
 
 void actualizar_bit_modificado(t_registro_tabla_paginas* registro_tabla_paginas) {

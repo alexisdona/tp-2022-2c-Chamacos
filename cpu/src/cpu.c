@@ -273,7 +273,7 @@ t_punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
     int marco;
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
 
-    if (desplazamiento_segmento > segmento->tamanio_segmento) {
+    if (desplazamiento_segmento >= segmento->tamanio_segmento) {
         log_info(logger, string_from_format(RED"PID: <%d> - SEGMENTATION FAULT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         estado_proceso = SEGMENTATION_FAULT;
         return NULL;
@@ -327,7 +327,7 @@ int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pa
     if (list_size(tlb) > 0) {
         for (int i=0; i < list_size(tlb); i++) {
             entrada_tlb = (tlb_entrada *) list_get(tlb,i);
-            if (entrada_tlb->pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
+            if (entrada_tlb->pid == pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
                 entrada_tlb->instante_referencia = instante_referencia + 1;
                 return entrada_tlb->marco;
             }
