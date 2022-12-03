@@ -574,7 +574,7 @@ uint buscar_registro_0_1(t_queue* paginas_frames_proceso, t_registro_tabla_pagin
 void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro) {
     registro->modificado=0;
   //  mostrar_contenido_swap(registro->posicion_swap);
-    log_info(logger, string_from_format(RED"Escritura de Página en SWAP: “SWAP OUT -  PID: <%d> - Marco: <%d> - Page Out: <%d>|<%d>"RESET,
+    log_info(logger, string_from_format(RED"Escritura de Página en SWAP: SWAP OUT -  PID: <%d> - Marco: <%d> - Page Out: <%d>|<%d>"RESET,
                                         registro->pid, registro->frame, registro->numero_segmento, registro->numero_pagina));
 
     void* pagina = malloc(tamanio_pagina);
