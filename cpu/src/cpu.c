@@ -9,6 +9,7 @@ int main(int argc, char* argv[]){
 
 	char* CONFIG_FILE = argv[1];
     ultima_entrada_fifo = 0;
+    instante_referencia_nueva_entrada = 0;
 
     logger = iniciar_logger(LOG_FILE,LOG_NAME);
     cpu_config = iniciar_config(CONFIG_FILE);
@@ -32,7 +33,7 @@ int main(int argc, char* argv[]){
     enviar_handshake_inicial(socket_kernel_interrupt,CPU_INTERRUPT,logger);
 	pthread_create(&thread_escucha_interrupt, NULL, conexion_interrupt, (void*) (intptr_t) socket_kernel_interrupt);
     pthread_detach(thread_escucha_interrupt);
-    instante_referencia_nueva_entrada = 0;
+    
     socket_memoria = crear_conexion(IP_MEMORIA,PUERTO_MEMORIA);
     handshake_memoria(socket_memoria);
 
@@ -322,23 +323,22 @@ void handshake_memoria(int conexion_memoria){
 
 int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina) {
     tlb_entrada * entrada_tlb = malloc(sizeof(tlb_entrada));
-    uint32_t instante_referencia = 0; 
 
     if (list_size(tlb) > 0) {
         for (int i=0; i < list_size(tlb); i++) {
             entrada_tlb = (tlb_entrada *) list_get(tlb,i);
             if (entrada_tlb->pid == pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
-                entrada_tlb->instante_referencia = instante_referencia + 1;
+                instante_referencia_nueva_entrada++;
+                entrada_tlb->instante_referencia = instante_referencia_nueva_entrada;
                 return entrada_tlb->marco;
             }
-            instante_referencia = (instante_referencia > entrada_tlb->instante_referencia) ? instante_referencia : entrada_tlb->instante_referencia;
         }
     }
     return -1;
 }
 
 void reemplazar_entrada_tlb(tlb_entrada* entrada) {
-    if (strcmp(algoritmo_reemplazo_tlb, "FIFO") ==0){
+    if (strcmp(algoritmo_reemplazo_tlb, "FIFO") == 0){
         list_remove(tlb, ultima_entrada_fifo);
         list_add_in_index(tlb, ultima_entrada_fifo, entrada);
         ultima_entrada_fifo = (ultima_entrada_fifo == entradas_max_tlb-1) ? 0 : ultima_entrada_fifo+1;
@@ -346,7 +346,6 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
     else {
         uint32_t indice_victima = obtener_indice_entrada_menor_instante_referencia();
         //Actualizo con el instante de referencia correspondiente para la entrada nueva
-        entrada->instante_referencia = instante_referencia_nueva_entrada + 1;
         list_remove(tlb,indice_victima);
         list_add_in_index(tlb,indice_victima,entrada);
     }
@@ -355,27 +354,19 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
 uint32_t obtener_indice_entrada_menor_instante_referencia(){
 
     uint32_t indice = 0;
-    uint32_t instante_referencia_minimo;
     tlb_entrada* entrada_i;
-   if(!list_is_empty(tlb)) {
-       entrada_i = list_get(tlb, 0);
-       instante_referencia_minimo  = entrada_i->instante_referencia;
-   }else{
-       instante_referencia_minimo = 0;
-   }
-
+    uint32_t instante_referencia_minimo;
+    
+    instante_referencia_minimo = ((tlb_entrada*) list_get(tlb,0))->instante_referencia;
+    
     for(uint32_t i=0; i < list_size(tlb); i++){
         entrada_i = list_get(tlb, i);
         
         //Obtengo el instante de referencia mas chico para reemplazar esa entrada
         if(instante_referencia_minimo > entrada_i->instante_referencia){
+            log_info(logger,string_from_format("ENTRADA %d: instante: %d - S%dP%d\n",i,entrada_i->instante_referencia,entrada_i->segmento,entrada_i->pagina));
             instante_referencia_minimo = entrada_i->instante_referencia;
             indice = i;
-        }
-
-        //Obtengo el instante de referencia mas alto para la nueva entrada
-        if(instante_referencia_nueva_entrada < entrada_i->instante_referencia){
-            instante_referencia_nueva_entrada = entrada_i->instante_referencia;
         }
     }
     return indice;
@@ -388,7 +379,10 @@ void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagi
     tlb_entrada->segmento = numero_segmento;
     tlb_entrada->pagina = numero_pagina;
     tlb_entrada->marco = marco;
-    tlb_entrada->instante_referencia = 1;
+    tlb_entrada->instante_referencia = instante_referencia_nueva_entrada;
+        
+    instante_referencia_nueva_entrada++;
+
     if (!list_is_empty(tlb)) {
         if (list_size(tlb) == entradas_max_tlb) {
             reemplazar_entrada_tlb(tlb_entrada);
@@ -399,7 +393,7 @@ void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagi
     }
     else {
         list_add(tlb, tlb_entrada);
-        }
+    }
         imprimir_entradas_tlb();
 }
 
