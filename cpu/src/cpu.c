@@ -289,7 +289,7 @@ t_punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
             return NULL;
         }
         else {
-            tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
+            if (entradas_max_tlb > 0) tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
         }
     } else {
         log_info(logger, "%s", string_from_format(GRN"PID: <%d> - TLB HIT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
