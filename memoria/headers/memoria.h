@@ -108,5 +108,7 @@ void actualizar_pagina_en_swap(t_registro_tabla_paginas* registro);
 void mostrar_contenido_swap(uint32_t puntero);
 void liberar_tablas_paginas_proceso(uint32_t pid, t_list* tabla_segmentos);
 void inicializar_bitmap_frames();
+uint buscar_registro_0_0(t_queue* paginas_frames_proceso, t_registro_tabla_paginas* registro_tabla_paginas_nuevo);
+uint buscar_registro_0_1(t_queue* paginas_frames_proceso, t_registro_tabla_paginas* registro_tabla_paginas_nuevo);
 
 #endif //TP_2022_2C_CHAMACOS_MEMORIA_H

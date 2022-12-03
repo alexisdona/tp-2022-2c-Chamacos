@@ -192,7 +192,7 @@ op_code operacion_ADD(registro_cpu registro1,registro_cpu registro2){
 
 op_code operacion_MOV_IN(registro_cpu registro, uint32_t direccion_logica){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_IN> - <%s> - <%d>"WHT, pcb->pid,traducir_registro_cpu(registro),direccion_logica));
-    punteros_cpu* punteros_cpu = obtener_direccion_fisica(direccion_logica);
+    t_punteros_cpu* punteros_cpu = obtener_direccion_fisica(direccion_logica);
 
     if(punteros_cpu != NULL) {
         uint32_t valor = leer_en_memoria(punteros_cpu);
@@ -210,7 +210,7 @@ op_code operacion_MOV_IN(registro_cpu registro, uint32_t direccion_logica){
 
 op_code operacion_MOV_OUT(uint32_t direccion_logica, registro_cpu registro){
 	log_info(logger,string_from_format(CYN"PID: <%d> - Ejecutando <MOV_OUT> - <%d> - <%s>"WHT,pcb->pid,direccion_logica,traducir_registro_cpu(registro)));
-    punteros_cpu * punteros_cpu = obtener_direccion_fisica(direccion_logica);
+    t_punteros_cpu * punteros_cpu = obtener_direccion_fisica(direccion_logica);
 
     if(punteros_cpu != NULL) {
         registro_cpu* registro_pcb = obtener_registro(pcb,registro);
@@ -262,7 +262,7 @@ void desalojo_proceso(){
 	hubo_interrupcion = CONTINUA_PROCESO;
 }
 
-punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
+t_punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
 
     uint32_t tamanio_maximo_segmento = entradas_por_tabla * tamanio_pagina;
     uint32_t numero_segmento = floor(direccion_logica / tamanio_maximo_segmento);
@@ -273,7 +273,7 @@ punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
     int marco;
     t_segmento* segmento = list_get(pcb->tabla_segmentos, numero_segmento);
 
-    if (desplazamiento_segmento > segmento->tamanio_segmento) {
+    if (desplazamiento_segmento >= segmento->tamanio_segmento) {
         log_info(logger, string_from_format(RED"PID: <%d> - SEGMENTATION FAULT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
         estado_proceso = SEGMENTATION_FAULT;
         return NULL;
@@ -288,12 +288,14 @@ punteros_cpu * obtener_direccion_fisica(uint32_t direccion_logica) {
             log_info(logger, "%s", string_from_format(RED"PAGE FAULT PID: <%d> - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
             return NULL;
         }
-        tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
+        else {
+            if (entradas_max_tlb > 0) tlb_actualizar(pcb->pid, numero_segmento, numero_pagina, marco);
+        }
     } else {
         log_info(logger, "%s", string_from_format(GRN"PID: <%d> - TLB HIT - SEGMENTO: <%d> - PAGINA: <%d>"RESET, pcb->pid, numero_segmento, numero_pagina));
      }
 
-    punteros_cpu *punteros_cpu = malloc(sizeof (punteros_cpu));
+    t_punteros_cpu* punteros_cpu = malloc(sizeof (t_punteros_cpu));
     punteros_cpu->pid = pcb->pid;
     punteros_cpu->numero_segmento = numero_segmento;
     punteros_cpu->indice_tabla_paginas = segmento->indice_tabla_paginas;
@@ -325,7 +327,7 @@ int tlb_obtener_marco(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pa
     if (list_size(tlb) > 0) {
         for (int i=0; i < list_size(tlb); i++) {
             entrada_tlb = (tlb_entrada *) list_get(tlb,i);
-            if (entrada_tlb->pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
+            if (entrada_tlb->pid == pid &&  entrada_tlb->segmento == numero_segmento && entrada_tlb->pagina == numero_pagina) {
                 entrada_tlb->instante_referencia = instante_referencia + 1;
                 return entrada_tlb->marco;
             }
@@ -354,9 +356,16 @@ void reemplazar_entrada_tlb(tlb_entrada* entrada) {
 uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_referencia_nueva_entrada){
 
     uint32_t indice = 0;
-    tlb_entrada* entrada_i = list_get(tlb, 0);
+    uint32_t instante_referencia_minimo;
+    tlb_entrada* entrada_i;
+   if(!list_is_empty(tlb)) {
+       entrada_i = list_get(tlb, 0);
+       instante_referencia_minimo  = entrada_i->instante_referencia;
+   }else{
+       instante_referencia_minimo = 0;
+   }
 
-    uint32_t instante_referencia_minimo = entrada_i->instante_referencia;
+
 
     for(uint32_t i=0; i < list_size(tlb); i++){
         entrada_i = list_get(tlb, i);
@@ -375,21 +384,28 @@ uint32_t obtener_indice_entrada_menor_instante_referencia(uint32_t* instante_ref
     return indice;
 }
 
-void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco){
+void tlb_actualizar(uint32_t pid, uint32_t numero_segmento, uint32_t numero_pagina, uint32_t marco) {
     //log_info(logger, "\nNUMERO_SEGMENTO: %d", numero_segmento);
-    tlb_entrada* tlb_entrada = malloc(sizeof(uint32_t)*5);
+    tlb_entrada *tlb_entrada = malloc(sizeof(uint32_t) * 5);
     tlb_entrada->pid = pid;
     tlb_entrada->segmento = numero_segmento;
     tlb_entrada->pagina = numero_pagina;
     tlb_entrada->marco = marco;
-    tlb_entrada->instante_referencia=1;
-    if (list_size(tlb) >= entradas_max_tlb){
-        reemplazar_entrada_tlb(tlb_entrada);
-    } else {
-        list_add(tlb, tlb_entrada);
+    tlb_entrada->instante_referencia = 1;
+    if (!list_is_empty(tlb)) {
+        if (list_size(tlb) == entradas_max_tlb) {
+            reemplazar_entrada_tlb(tlb_entrada);
+        }
+        else {
+            list_add(tlb, tlb_entrada);
+        }
     }
-    imprimir_entradas_tlb();
+    else {
+        list_add(tlb, tlb_entrada);
+        }
+        imprimir_entradas_tlb();
 }
+
 
 void imprimir_entradas_tlb() {
     for (int i=0; i < tlb->elements_count; i++) {
@@ -421,7 +437,7 @@ void actualizar_entrada_marco_existente(uint32_t numero_pagina, uint32_t marco){
     }
 }
 
-uint32_t leer_en_memoria(punteros_cpu * punteros_cpu) {
+uint32_t leer_en_memoria(t_punteros_cpu * punteros_cpu) {
     t_paquete* paquete = crear_paquete();
     paquete->codigo_operacion = LEER_MEMORIA;
     agregar_entero(paquete, punteros_cpu->pid);
@@ -478,7 +494,7 @@ int obtener_marco_memoria(uint32_t indice_tabla_paginas, uint32_t numero_pagina)
     }
 }
 
-void escribir_en_memoria(punteros_cpu * punteros_cpu, uint32_t valor) {
+void escribir_en_memoria(t_punteros_cpu * punteros_cpu, uint32_t valor) {
     t_paquete* paquete = crear_paquete();
     paquete->codigo_operacion = ESCRIBIR_MEMORIA;
     agregar_entero(paquete, pcb->pid);
